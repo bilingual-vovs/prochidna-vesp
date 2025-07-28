@@ -1,8 +1,12 @@
 import NFC_PN532 as nfc
-from machine import Pin, SPI
+from machine import Pin, SPI, reset
 import time
 from utils import blink
 from umqtt.simple import MQTTClient
+
+connection_check_interval = 5
+connection_retries = 15
+connection_retries_counter = 0
 
 spi_dev = SPI(1, baudrate=1000000, sck=Pin(18), mosi=Pin(23), miso=Pin(19))
 
@@ -15,7 +19,7 @@ connected = False
 
 def connect_to_pn532():
 
-    global pn532, connected
+    global pn532, connected, connection_retries_counter, connection_retries
     
     if pn532 is None:
         pn532 = nfc.PN532(spi_dev, cs)
@@ -27,7 +31,10 @@ def connect_to_pn532():
         connected = True
         return True
     except RuntimeError as e:
-        print(f"Error connecting to PN532: {e}. Retrying connection...")
+        print(f"Error connecting to PN532: {e}. Retrying connection..." + str(connection_retries_counter))
+        if connection_retries_counter >= connection_retries:
+            reset()
+        connection_retries_counter += 1
         connected = False
         return False
 
@@ -59,25 +66,32 @@ BROKER_ADDR = '192.168.31.149'
 mqttc = MQTTClient(CLIENT_NAME, BROKER_ADDR, keepalive=60)
 mqttc.connect()
 
+def publish_read(uid, mqttc):
+    mqttc.publish('read', str(uid))
+
 
 
 print("Attempting initial connection to PN532...")
 while not connected:
     connect_to_pn532()
     if not connected:
-        time.sleep(2) 
+        time.sleep(1) 
 
 # --- NFC Reading Logic ---
 last_uid = None
 
 def read_nfc(dev, tmot):
-    global last_uid, connected
+    global last_uid, connected, mqttc, connection_retries_counter
 
     if not connected:
-        print("PN532 is currently disconnected. Attempting to restore connection before reading...")
-        if not check_pn532_connection(): 
+        print(f"PN532 is currently disconnected. Attempting to restore connection before reading... {connection_retries_counter}")
+        if not check_pn532_connection():
+            if connection_retries_counter >= connection_retries:
+                print(f"Failed to restore PN532 connection after {connection_retries} retries. Initiating system reset.")
+                reset() # Triggers system reboot
+            connection_retries_counter += 1
             return False 
-
+    connection_retries_counter = 0 # Reset counter only if connection is confirmed active
 
     try:
         uid = dev.read_passive_target(timeout=tmot)
@@ -88,6 +102,22 @@ def read_nfc(dev, tmot):
                 uid_str_dec = '-'.join([str(i) for i in uid])
 
                 blink(3, delay_ms=30)
+                # Ensure MQTT connection is still active before publishing
+                try:
+                    mqttc.ping() # Check if MQTT connection is alive
+                except Exception as mqtt_e:
+                    print(f"MQTT connection lost during ping: {mqtt_e}. Reconnecting MQTT.")
+                    try:
+                        mqttc.connect() # Reconnect MQTT
+                        print("MQTT reconnected successfully.")
+                    except Exception as reconnect_e:
+                        print(f"Failed to reconnect MQTT: {reconnect_e}.")
+                        # Decide if you want to reset here or just continue without MQTT
+                        # For example, if MQTT is critical:
+                        # reset() 
+                        return False # Don't publish if MQTT is down
+
+                publish_read(uid_str_dec, mqttc)
 
                 print("")
                 print('--- Card Found! ---')
@@ -96,20 +126,23 @@ def read_nfc(dev, tmot):
                 print('--------------------')
                 return True
         return False 
-    except RuntimeError as e:
-        print(f"Error while reading from PN532: {e}. Module disconnected.")
+    except RuntimeError as e: # Catch communication errors specifically from PN532 library
+        print(f"PN532 communication error (RuntimeError): {e}. Module disconnected.")
         connected = False 
         return False
-    except Exception as e:
-        print(f"Unexpected error while reading: {e}")
+    except OSError as e: # Catch OS-level errors like ENOTCONN (Errno 128)
+        # This is where your [Errno 128] ENOTCONN is being caught.
+        print(f"PN532 underlying communication (OSError): {e}. Module disconnected.")
+        connected = False
+        return False
+    except Exception as e: # Catch any other unexpected errors
+        print(f"Unexpected general error while reading: {e}. Module disconnected.")
         connected = False
         return False
 
 # --- Main Program Loop ---
 print('Waiting for RFID cards...')
-connection_check_interval = 10 
 check_counter = 0
-
 while True:
     read_nfc(pn532, 500)
     
