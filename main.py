@@ -24,7 +24,7 @@ DEFAULT_CONFIG = {
     "READ_EVENT_PREFFIX": 'read',
     "WHITELIST_TOPIC_SUFFIX": "whitelist/update",
     "CONFIG_TOPIC_SUFFIX": "configure", 
-
+    "RESET_TOPIC_SUFFIX": "reset",
 }
 
 # --- Hardware Setup ---
@@ -153,6 +153,7 @@ async def mqtt_connect():
             mqttc.connect()
             mqttc.subscribe(f'{config["READER_ID_AFFIX"]}/{config["WHITELIST_TOPIC_SUFFIX"]}')  # Subscribe to whitelist topic
             mqttc.subscribe(f"{config["READER_ID_AFFIX"]}/{config['CONFIG_TOPIC_SUFFIX']}/#") # New: Subscribe to config topics
+            mqttc.subscribe(f'{config["READER_ID_AFFIX"]}/{config["RESET_TOPIC_SUFFIX"]}')
             log("Connected to MQTT Broker")
             connected_mqtt = True
             return True
@@ -219,7 +220,7 @@ def mqtt_callback(topic, msg):
             # Attempt to convert the message to the correct type
             if config_var in ("CONNECTION_CHECK_INTERVAL", "CONNECTION_RETRIES", "MQTT_RECONNECT_DELAY", "NFC_READ_TIMEOUT", "MAX_QUEUE_SIZE"):
                 value = int(msg)
-            elif config_var in ("READER_ID_AFFIX", "BROKER_ADDR", "READ_EVENT_PREFFIX", "WHITELIST_TOPIC_SUFFIX", "CONFIG_TOPIC_SUFFIX"):
+            elif config_var in ("READER_ID_AFFIX", "BROKER_ADDR", "READ_EVENT_PREFFIX", "WHITELIST_TOPIC_SUFFIX", "CONFIG_TOPIC_SUFFIX", "RESET_TOPIC_SUFFIX"):
                 value = str(msg)
             else:
                 log(f"Unknown configuration variable: {config_var}")
@@ -228,6 +229,8 @@ def mqtt_callback(topic, msg):
             config[config_var] = value
             log(f"Configuration variable '{config_var}' updated to '{value}'")
             save_config() # Save it
+            if not config_var in ["CONNECTION_CHECK_INTERVAL", "CONNECTION_RETRIES", "MAX_QUEUE_SIZE", "READ_EVENT_PREFFIX"]:
+                reset() 
         except ValueError:
             log(f"Invalid value for configuration variable '{config_var}': {msg}")
         except Exception as e:
