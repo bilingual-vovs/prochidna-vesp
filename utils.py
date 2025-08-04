@@ -9,10 +9,6 @@ def blink(times, delay_ms=100):
         pin.value(0) 
         time.sleep_ms(delay_ms)
 
-def indicate(w):
-    if w: blink(3)
-    else: blink(1) 
-
 def generate_default_reader_id():
     """Generates a default reader ID based on the MAC address."""
     import network, binascii

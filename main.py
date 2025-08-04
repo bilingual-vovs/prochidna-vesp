@@ -2,12 +2,13 @@ import NFC_PN532 as nfc
 from machine import Pin, SPI, reset, RTC
 import time
 import uasyncio as asyncio
-from utils import blink, indicate, generate_default_reader_id  # Import indicate
+from utils import blink, generate_default_reader_id  # Import indicate
+from buzzer import BuzzerController
 from umqtt.simple import MQTTClient
 import ujson
 import os
 
-SOFTWARE = 'v2.1.7'
+SOFTWARE = 'v2.2.9'
 
 # --- Configuration ---
 CONFIG_FILE = "config.json"
@@ -30,6 +31,7 @@ DEFAULT_CONFIG = {
 # --- Hardware Setup ---
 spi_dev = SPI(1, baudrate=1000000, sck=Pin(18), mosi=Pin(23), miso=Pin(19))
 cs = Pin(5, Pin.OUT, value=1)
+buzzer = BuzzerController(4)
 
 # --- Global State ---
 pn532 = None
@@ -108,6 +110,9 @@ async def check_pn532_connection():
             except Exception as e:
                 log(f"PN532 connection lost: {e}")
                 connected_nfc = False
+
+def indicate(i): # Make the function async
+    buzzer.indicate(i)
 
 async def read_nfc():
     global last_uid, connected_nfc, data_queue, queue_lock, whitelist
