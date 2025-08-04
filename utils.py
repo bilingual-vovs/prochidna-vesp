@@ -8,3 +8,15 @@ def blink(times, delay_ms=100):
         time.sleep_ms(delay_ms)
         pin.value(0) 
         time.sleep_ms(delay_ms)
+
+def indicate(w):
+    if w: blink(3)
+    else: blink(1) 
+
+def generate_default_reader_id():
+    """Generates a default reader ID based on the MAC address."""
+    import network, binascii
+    wlan = network.WLAN(network.STA_IF)
+    mac = wlan.config('mac')
+    mac_str = binascii.hexlify(mac).decode('utf-8')
+    return 'unidentified_reader/' + mac_str

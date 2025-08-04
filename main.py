@@ -2,25 +2,29 @@ import NFC_PN532 as nfc
 from machine import Pin, SPI, reset, RTC
 import time
 import uasyncio as asyncio
-from utils import blink, indicate  # Import indicate
+from utils import blink, indicate, generate_default_reader_id  # Import indicate
 from umqtt.simple import MQTTClient
 import ujson
 import os
+
+SOFTWARE = 'v2.1.7'
 
 # --- Configuration ---
 CONFIG_FILE = "config.json"
 DEFAULT_CONFIG = {
     "CONNECTION_CHECK_INTERVAL": 5,
     "CONNECTION_RETRIES": 5,
-    "CLIENT_NAME": 'blue',
     "BROKER_ADDR": '192.168.232.73',
     "MQTT_RECONNECT_DELAY": 5,
     "NFC_READ_TIMEOUT": 300,
-    "DATA_PUBLISH_TOPIC": 'read',
-    "WHITELIST_TOPIC": "whitelist/update",
-    "CONFIG_TOPIC_PREFIX": "configure", # New: Configuration topic prefix
     "MAX_QUEUE_SIZE": 50,
-    "WHITELIST": [] # Initial empty whitelist
+    "WHITELIST": [], 
+    # --- Mqtt event naming ---
+    "READER_ID_AFFIX": generate_default_reader_id(),
+    "READ_EVENT_PREFFIX": 'read',
+    "WHITELIST_TOPIC_SUFFIX": "whitelist/update",
+    "CONFIG_TOPIC_SUFFIX": "configure", 
+
 }
 
 # --- Hardware Setup ---
@@ -49,6 +53,10 @@ def load_config():
         with open(CONFIG_FILE, 'r') as f:
             config = ujson.load(f)
         log("Configuration loaded from file.")
+        if config["READER_ID_AFFIX"] == "unidentified_reader": 
+            config["READER_ID_AFFIX"] = generate_default_reader_id()
+            save_config()
+            log("Generated UID for reader: " + config['READER_ID_AFFIX'])
     except Exception as e:
         log(f"Error loading configuration: {e}. Using defaults.")
         config = DEFAULT_CONFIG.copy()
@@ -137,14 +145,14 @@ async def read_nfc():
 # --- MQTT Functions ---
 async def mqtt_connect():
     global mqttc, connected_mqtt
-    mqttc = MQTTClient(config["CLIENT_NAME"], config["BROKER_ADDR"], keepalive=60)
+    mqttc = MQTTClient(config["READER_ID_AFFIX"], config["BROKER_ADDR"], keepalive=60)
     mqttc.set_callback(mqtt_callback) # Set the callback
     retries = 0
     while retries < config["CONNECTION_RETRIES"]:
         try:
             mqttc.connect()
-            mqttc.subscribe(config["WHITELIST_TOPIC"])  # Subscribe to whitelist topic
-            mqttc.subscribe(f"{config['CONFIG_TOPIC_PREFIX']}/#") # New: Subscribe to config topics
+            mqttc.subscribe(f'{config["READER_ID_AFFIX"]}/{config["WHITELIST_TOPIC_SUFFIX"]}')  # Subscribe to whitelist topic
+            mqttc.subscribe(f"{config["READER_ID_AFFIX"]}/{config['CONFIG_TOPIC_SUFFIX']}/#") # New: Subscribe to config topics
             log("Connected to MQTT Broker")
             connected_mqtt = True
             return True
@@ -177,7 +185,7 @@ async def publish_data():
                 if data_queue:
                     data = data_queue.pop(0)  # Pop from the beginning of the list (FIFO)
                     try:
-                        mqttc.publish(config["DATA_PUBLISH_TOPIC"], str(data))
+                        mqttc.publish(f'{config["READ_EVENT_PREFFIX"]}/{config["READER_ID_AFFIX"]}', str(data))
                         log(f"Published data: {data}")
                     except Exception as e:
                         log(f"Error publishing data: {e}")
@@ -193,7 +201,7 @@ def mqtt_callback(topic, msg):
     msg = msg.decode('utf-8')
     log(f"Received MQTT message on topic: {topic}, message: {msg}")
 
-    if topic == config["WHITELIST_TOPIC"]:
+    if topic == f'{config["READER_ID_AFFIX"]}/{config["WHITELIST_TOPIC_SUFFIX"]}':
         try:
             new_whitelist = ujson.loads(msg)
             if isinstance(new_whitelist, list):
@@ -205,13 +213,13 @@ def mqtt_callback(topic, msg):
                 log("Invalid whitelist format. Expected a list.")
         except Exception as e:
             log(f"Error processing whitelist update: {e}")
-    elif topic.startswith(config["CONFIG_TOPIC_PREFIX"] + "/"):
-        config_var = topic[len(config["CONFIG_TOPIC_PREFIX"]) + 1:] # Extract variable name
+    elif topic.startswith(f'{config["READER_ID_AFFIX"]}/{config["CONFIG_TOPIC_SUFFIX"]}/'):
+        config_var = topic[len(f'{config["READER_ID_AFFIX"]}/{config["CONFIG_TOPIC_SUFFIX"]}') + 1:] # Extract variable name
         try:
             # Attempt to convert the message to the correct type
             if config_var in ("CONNECTION_CHECK_INTERVAL", "CONNECTION_RETRIES", "MQTT_RECONNECT_DELAY", "NFC_READ_TIMEOUT", "MAX_QUEUE_SIZE"):
                 value = int(msg)
-            elif config_var in ("CLIENT_NAME", "BROKER_ADDR", "DATA_PUBLISH_TOPIC", "WHITELIST_TOPIC", "CONFIG_TOPIC_PREFIX"):
+            elif config_var in ("READER_ID_AFFIX", "BROKER_ADDR", "READ_EVENT_PREFFIX", "WHITELIST_TOPIC_SUFFIX", "CONFIG_TOPIC_SUFFIX"):
                 value = str(msg)
             else:
                 log(f"Unknown configuration variable: {config_var}")
@@ -227,6 +235,8 @@ def mqtt_callback(topic, msg):
 
 # --- Main ---
 async def main():
+    global SOFTWARE
+    log("Loading software version: " + SOFTWARE)
     load_config() # Load configuration from file
     apply_config() # Apply configuration
 
