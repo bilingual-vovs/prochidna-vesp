@@ -6,9 +6,9 @@ from utils import blink, generate_default_reader_id  # Import indicate
 from buzzer import BuzzerController
 from umqtt.simple import MQTTClient
 import ujson
-import os
+from light import Light_controller
 
-SOFTWARE = 'v2.3.1'
+SOFTWARE = 'v2.4.6'
 
 # --- Configuration ---
 CONFIG_FILE = "config.json"
@@ -41,11 +41,6 @@ DEFAULT_CONFIG = {
     ]
 }
 
-# --- Hardware Setup ---
-spi_dev = SPI(1, baudrate=1000000, sck=Pin(18), mosi=Pin(23), miso=Pin(19))
-cs = Pin(5, Pin.OUT, value=1)
-buzzer = BuzzerController(4)
-
 # --- Global State ---
 pn532 = None
 mqttc = None
@@ -58,7 +53,17 @@ config = DEFAULT_CONFIG.copy()  # Make a copy to work with
 whitelist = set()  # Store whitelist as a set for fast lookups
 rtc = RTC() # Real time clock for synchronize time
 
+
+# --- Hardware Setup ---
+
+spi_dev = SPI(1, baudrate=1000000, sck=Pin(18), mosi=Pin(23), miso=Pin(19))
+cs = Pin(5, Pin.OUT, value=1)
+buzzer = BuzzerController(config['BUZZER_GPIO'])
+light = Light_controller(15, 16)
+
 # --- Helper Functions ---
+
+
 def log(message):
     print(f"[{time.time()}] {message}")
 
@@ -124,11 +129,13 @@ async def check_pn532_connection():
                 log(f"PN532 connection lost: {e}")
                 connected_nfc = False
 
-def indicate(i): # Make the function async
+async def indicate(i): # Make the function async
     if i:
-        buzzer.play_melody(config["APROVAL_MELODY"])
+        asyncio.create_task(light.light_green(1))
+        asyncio.create_task(buzzer.play_melody(config["APROVAL_MELODY"]))
     else:
-        buzzer.play_melody(config["DENIAL_MELODY"])
+        asyncio.create_task(light.light_red(1))
+        asyncio.create_task(buzzer.play_melody(config["DENIAL_MELODY"]))
 
 
 async def read_nfc():
@@ -148,7 +155,7 @@ async def read_nfc():
 
                         if uid_str_dec in whitelist:
                             log("Card is whitelisted. Access granted.")
-                            indicate(True) # Indicate whitelisted card
+                            asyncio.create_task(indicate(True)) # Indicate whitelisted card
                             async with queue_lock:  # Acquire the lock before modifying the queue
                                 if len(data_queue) < config["MAX_QUEUE_SIZE"]:
                                     data_queue.append(uid_str_dec)
@@ -157,7 +164,7 @@ async def read_nfc():
                                     log("Data queue is full. Discarding data.")  # Handle overflow
                         else:
                             log("Card is NOT whitelisted. Access denied.")
-                            indicate(False) # Indicate not whitelisted card
+                            asyncio.create_task(indicate(False)) # Indicate not whitelisted card
 
             except Exception as e:
                 log(f"Error reading NFC: {e}")
