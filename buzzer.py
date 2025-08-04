@@ -29,14 +29,8 @@ class BuzzerController:
         """Plays the approval sound."""
         self.play_melody()
 
-    def play_melody(self):
+    def play_melody(self, melody):
         """Plays the approval melody (asynchronously)."""
-        melody = [
-            (440, 100),  # A4
-            (494, 100),  # B4
-            (523, 100),  # C5
-            (587, 200)   # D5 (longer duration)
-        ]
         for frequency, duration in melody:
             self.play_tone(frequency, duration, self.volume)
             self.play_tone(211, 50, 0) 

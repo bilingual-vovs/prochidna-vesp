@@ -8,7 +8,7 @@ from umqtt.simple import MQTTClient
 import ujson
 import os
 
-SOFTWARE = 'v2.2.9'
+SOFTWARE = 'v2.3.1'
 
 # --- Configuration ---
 CONFIG_FILE = "config.json"
@@ -26,6 +26,19 @@ DEFAULT_CONFIG = {
     "WHITELIST_TOPIC_SUFFIX": "whitelist/update",
     "CONFIG_TOPIC_SUFFIX": "configure", 
     "RESET_TOPIC_SUFFIX": "reset",
+    # --- Melodies --- 
+    "BUZZER_GPIO": 4,
+    "APROVAL_MELODY": [
+        [659, 150],  
+        [698, 150],  
+        [784, 150],  
+        [880, 300]
+    ],
+    "DENIAL_MELODY":[
+        [523, 200],  
+        [440, 200],  
+        [349, 300]
+    ]
 }
 
 # --- Hardware Setup ---
@@ -112,7 +125,11 @@ async def check_pn532_connection():
                 connected_nfc = False
 
 def indicate(i): # Make the function async
-    buzzer.indicate(i)
+    if i:
+        buzzer.play_melody(config["APROVAL_MELODY"])
+    else:
+        buzzer.play_melody(config["DENIAL_MELODY"])
+
 
 async def read_nfc():
     global last_uid, connected_nfc, data_queue, queue_lock, whitelist

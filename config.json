@@ -12,5 +12,18 @@
     "READ_EVENT_PREFFIX": "read",
     "WHITELIST_TOPIC_SUFFIX": "whitelist/update",
     "CONFIG_TOPIC_SUFFIX": "configure",
-    "RESET_TOPIC_SUFFIX": "reset"
+    "RESET_TOPIC_SUFFIX": "reset",
+
+    "BUZZER_GPIO": 4,
+    "APROVAL_MELODY": [
+        [659, 150],  
+        [698, 150],  
+        [784, 150],  
+        [880, 300]
+    ],
+    "DENIAL_MELODY":[
+        [523, 200],  
+        [440, 200],  
+        [349, 300]
+    ]
 }
