@@ -8,7 +8,7 @@ from umqtt.simple import MQTTClient
 import ujson
 from light import Light_controller
 
-SOFTWARE = 'v2.4.6'
+SOFTWARE = 'v2.5.3'
 
 # --- Configuration ---
 CONFIG_FILE = "config.json"
@@ -183,6 +183,8 @@ async def mqtt_connect():
             mqttc.subscribe(f'{config["READER_ID_AFFIX"]}/{config["WHITELIST_TOPIC_SUFFIX"]}')  # Subscribe to whitelist topic
             mqttc.subscribe(f"{config["READER_ID_AFFIX"]}/{config['CONFIG_TOPIC_SUFFIX']}/#") # New: Subscribe to config topics
             mqttc.subscribe(f'{config["READER_ID_AFFIX"]}/{config["RESET_TOPIC_SUFFIX"]}')
+            mqttc.set_last_will(topic=f'offline/{config["READER_ID_AFFIX"]}', msg=config["READER_ID_AFFIX"], retain=True, qos=2)
+            mqttc.publish(f'online/{config["READER_ID_AFFIX"]}', config["READER_ID_AFFIX"])
             log("Connected to MQTT Broker")
             connected_mqtt = True
             return True
@@ -299,5 +301,6 @@ if __name__ == "__main__":
             log("Releasing NFC resources.")
         if mqttc:
             log("Disconnecting from MQTT.")
+            mqttc.publish(f'offline/{config["READER_ID_AFFIX"]}', config["READER_ID_AFFIX"])
             mqttc.disconnect()
         log("Done.")

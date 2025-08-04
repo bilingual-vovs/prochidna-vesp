@@ -11,12 +11,14 @@ const bot = new TelegramBot(TOKEN , { polling: true });
 
 const usersFilePath = path.join(__dirname, 'users.json');
 
+let readers = []
+
 const saveUser = (id) => {
     return new Promise((res, rej) => {
         fs.readFile(usersFilePath, (err, data)=>{
             let dat = JSON.parse(data)
             if (dat.includes(id)){
-                res(true)
+                res(false)
             }
             else{
                 dat.push(id)
@@ -34,26 +36,16 @@ const sendAll = (msg) => {
         fs.readFile(usersFilePath, (err, data)=>{
             let dat = JSON.parse(data)
             dat.forEach(id => {
-                bot.sendMessage(id, msg)
+                bot.sendMessage(id, msg, {
+                    // reply_markup: {
+                    //     keyboard: [readers]
+                    // }
+                })
             });
             res()
         })
     })
 }
-
-bot.on('message', (msg) => {
-    saveUser(msg.chat.id).then(()=>{
-        bot.sendMessage(msg.chat.id, 'Ви підписалися на отримання системних сповіщень тестової проїідної')
-    })
-});
-
-bot.on('polling_error', (error) => {
-    console.error(`[polling_error] ${error.code}: ${error.message}`);
-});
-
-
-
-
 const mqtt = require('mqtt');
 
 
@@ -72,6 +64,8 @@ client.on('connect', () => {
   console.log('Successfully connected to MQTT broker!');
 
   client.subscribe(MQTT_SUB);
+  client.subscribe('offline/#')
+  client.subscribe("online/#")
 });
 
 client.on('error', (error) => {
@@ -82,7 +76,46 @@ client.on('error', (error) => {
 
 client.on('message', (topic, message) => {
 
-  const messageString = message.toString();
+    if (topic.startsWith("online")){
+        readers.push(message.toString())
+    }
+    else if (topic.startsWith('offline') && readers.includes(message.toString())){
+        readers.map((e, i) => {
+            if (e !== message.toString()) return e
+        })
+    }
+    let messageString = message.toString()
   console.log(`Received message: "${messageString}" on topic: "${topic}"`);
   sendAll(`Received message: "${messageString}" on topic: "${topic}"`)
 });
+
+
+bot.on('message', (msg) => {
+    saveUser(msg.chat.id).then((w)=>{
+        if (w) bot.sendMessage(msg.chat.id, 'Ви підписалися на отримання системних сповіщень тестової проїідної')
+    })
+    
+    const sp = msg.text.split(' ')
+
+    switch (sp[0]) {
+        case '/whitelist_update':
+            client.publish(`${sp[1]}/whitelist/update`, sp[2])
+            console.log(`${sp[1]}/whitelist/update`)
+            break;
+        case "/configure":
+            client.publish(`${sp[2]}/configure/${sp[1]}`, sp[3])
+            break
+        case "/readers":
+            bot.sendMessage(msg.chat.id, readers.join('\n') + " __")
+            break
+        default:
+            break;
+    }
+
+});
+
+bot.on('polling_error', (error) => {
+    console.error(`[polling_error] ${error.code}: ${error.message}`);
+});
+
+
