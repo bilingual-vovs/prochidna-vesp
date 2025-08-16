@@ -53,6 +53,8 @@ class BuzzerController:
             await self.approval_sound()
         else:
             await self.denial_sound()
+    def off(self):
+        self.pwm.duty(0)
 
 
 # Example Usage (assuming buzzer is connected to pin 4):

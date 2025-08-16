@@ -65,7 +65,7 @@ client.on('connect', () => {
 
   client.subscribe(MQTT_SUB);
   client.subscribe('offline/#')
-  client.subscribe("online/#")
+  client.subscribe("#")
 });
 
 client.on('error', (error) => {

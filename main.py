@@ -59,6 +59,7 @@ rtc = RTC() # Real time clock for synchronize time
 spi_dev = SPI(1, baudrate=1000000, sck=Pin(18), mosi=Pin(23), miso=Pin(19))
 cs = Pin(5, Pin.OUT, value=1)
 buzzer = BuzzerController(config['BUZZER_GPIO'])
+buzzer.off()  # Ensure buzzer is off initially
 light = Light_controller(15, 16)
 
 # --- Helper Functions ---
@@ -97,7 +98,7 @@ def apply_config():
 
 # --- NFC Functions ---
 async def connect_to_pn532():
-    global pn532, connected_nfc
+    global pn532, connected_nfc, mqttc
     if pn532 is None:
         pn532 = nfc.PN532(spi_dev, cs)
     retries = 0
@@ -112,6 +113,7 @@ async def connect_to_pn532():
             log(f"Error connecting to PN532: {e}. Retrying...")
             retries += 1
             await asyncio.sleep(1)
+    mqttc.publish(f'error/{config["READER_ID_AFFIX"]}', 'Failed to connect to PN532 after multiple retries.')
     log("Failed to connect to PN532 after multiple retries.")
     return False
 
@@ -193,21 +195,9 @@ async def mqtt_connect():
             retries += 1
             await asyncio.sleep(config["MQTT_RECONNECT_DELAY"])
     log("Failed to connect to MQTT after multiple retries.")
+    reset()
     return False
 
-async def check_mqtt_connection():
-    global connected_mqtt
-    while True:
-        await asyncio.sleep(config["CONNECTION_CHECK_INTERVAL"])
-        if not connected_mqtt:
-            log("MQTT connection is down. Attempting to reconnect.")
-            await mqtt_connect()
-        else:
-            try:
-                mqttc.ping()
-            except Exception as e:
-                log(f"MQTT connection lost: {e}")
-                connected_mqtt = False
 
 async def publish_data():
     global connected_mqtt, data_queue, queue_lock
@@ -269,16 +259,18 @@ def mqtt_callback(topic, msg):
 
 # --- Main ---
 async def main():
-    global SOFTWARE
+    global SOFTWARE, connected_mqtt
     log("Loading software version: " + SOFTWARE)
     load_config() # Load configuration from file
     apply_config() # Apply configuration
 
+    buzzer.off()  # Ensure buzzer is off initially
+    light.off()  # Ensure lights are off initially
     await connect_to_pn532()
     await mqtt_connect()
+    buzzer.off()  # Ensure buzzer is off initially
 
     asyncio.create_task(check_pn532_connection())
-    asyncio.create_task(check_mqtt_connection())
     asyncio.create_task(read_nfc())
     asyncio.create_task(publish_data())
 
@@ -288,7 +280,14 @@ async def main():
             mqttc.check_msg() # Check for incoming MQTT messages
             await asyncio.sleep(0.1)
         except Exception as e:
-            log(f"Error in main loop: {e}")
+            connected_mqtt = False
+            await mqtt_connect()
+            if connected_mqtt: pass
+
+            log(f"Unrecoverable error in main loop: {e}")
+            mqttc.publish(f'error/{config["READER_ID_AFFIX"]}', f'Unrecoverable error in main loop. {e}. Resetting device.')
+            log("Resetting due to unrecoverable error.")
+            reset()
 
 # --- Entry Point ---
 if __name__ == "__main__":
