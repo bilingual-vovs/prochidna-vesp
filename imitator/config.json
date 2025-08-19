@@ -6,7 +6,7 @@
     "MQTT_RECONNECT_DELAY": 5,
     "NFC_READ_TIMEOUT": 300,
     "MAX_QUEUE_SIZE": 50,
-    "WHITELIST": [["86-225-141-90"]],
+    "WHITELIST": ["86-225-141-90"],
 
     "READER_ID_AFFIX": "unidentified_reader",
     "READ_EVENT_PREFFIX": "read",
