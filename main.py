@@ -10,7 +10,7 @@ from mqtt_manager import MqttManager # <-- NEW IMPORT
 
 freq(240000000)
 
-SOFTWARE = 'v2.12.0-mqtt-manager'
+SOFTWARE = 'v2.13.6-topic-naming'
 
 # --- Configuration (Unchanged) ---
 CONFIG_FILE = "config.json"
@@ -18,11 +18,25 @@ DEFAULT_CONFIG = {
     # All your config keys remain here...
     "CONNECTION_CHECK_INTERVAL": 5,"CONNECTION_RETRIES": 5,"MQTT_RECONNECT_DELAY": 5,"NFC_READ_TIMEOUT": 300,"MAX_QUEUE_SIZE": 50, "MQTT_DELAY": 500,
     "WIFI_SSID": "prohidna","WIFI_PASSWORD": "admin1234",
-    "BROKER_ADDR": '192.168.232.73',"READER_ID_AFFIX": generate_default_reader_id(),"READ_EVENT_PREFFIX": 'read',"WHITELIST_TOPIC_SUFFIX": "whitelist/update","CONFIG_TOPIC_SUFFIX": "configure","RESET_TOPIC_SUFFIX": "reset",
+    "BROKER_ADDR": '192.168.232.73',"READER_ID_AFFIX": generate_default_reader_id(),
     "BUZZER_GPIO": 4,"SPI_SCK_GPIO": 18,"SPI_MOSI_GPIO": 23,"SPI_MISO_GPIO": 19,"NFC_CS_GPIO": 5,"LED_GPIO": 32,
     "APROVAL_MELODY": [[659, 150], [698, 150], [784, 150], [880, 300]],
     "DENIAL_MELODY": [[523, 200], [440, 200], [349, 300]],
-    "WHITELIST": [],"LED_DIODS_AM": 24,'LED_COLOR_SUCCESS': [0, 255, 0],'LED_COLOR_FAILURE': [255, 0, 0],'LED_COLOR_LOADING': [0, 100, 200],'LED_COLOR_WAITING': [0, 50, 100],'LED_COLOR_OFF': [0, 0, 0],'LED_LOADING_POS': 0,'LED_WAITING_PULSE_ANGLE': 0,'LED_WAITING_PULSE_SPEED': 0.04
+    "WHITELIST": [],"LED_DIODS_AM": 24,'LED_COLOR_SUCCESS': [0, 255, 0],'LED_COLOR_FAILURE': [255, 0, 0],'LED_COLOR_LOADING': [0, 100, 200],'LED_COLOR_WAITING': [0, 50, 100],'LED_COLOR_OFF': [0, 0, 0],'LED_LOADING_POS': 0,'LED_WAITING_PULSE_ANGLE': 0,'LED_WAITING_PULSE_SPEED': 0.04,
+    
+    "MQTT_NAMING_TEMPLATE_SUBSCRIBE": "device/$READER_ID_AFFIX/manage/#",
+    "MQTT_NAMING_TEMPLATE_PUBLISH": "device/$READER_ID_AFFIX/events/#",
+    
+    "READER_ID_AFFIX": "reader_real",
+    "READ_EVENT": "read",
+    "ERROR_EVENT": "error",
+    "ONLINE_EVENT": "online",
+    "OFFLINE_EVENT": "offline",
+    "TELEMETRY_EVENT": "telemetry",
+
+    "MANAGE_WHITELIST": "whitelist/update",
+    "MANAGE_CONFIG": "configure",
+    "MANAGE_RESET": "reset"
 }
 
 # --- Global State & Hardware Objects (Simplified) ---
@@ -77,6 +91,7 @@ def handle_config_update(config_var, msg):
             log(f"Resetting to apply changes for '{config_var}'..."); reset()
     except Exception as e:
         log(f"Error processing config update for '{config_var}': {e}")
+        mqtt_manager.register_error(f"Error processing config update for '{config_var}': {e}")
 
 # --- Hardware and NFC (Slightly simplified) ---
 def initialize_hardware():
@@ -113,8 +128,7 @@ async def connect_to_pn532():
                 log(f"Error connecting to PN532: {e}. Retrying...")
                 retries += 1
                 await asyncio.sleep(1)
-                if mqttc:
-                    mqttc.publish(f'error/{config["READER_ID_AFFIX"]}', 'Failed to connect to PN532 after multiple retries.')
+                mqtt_manager.register_error(f"Error connecting to PN532: {e}")
                 log("Failed to connect to PN532 after multiple retries.")
                 return False
             
@@ -172,6 +186,7 @@ async def read_nfc():
                             asyncio.create_task(buzzer.play_denial())  # Play denial melody
             except Exception as e:
                 log(f"Error reading NFC: {e}")
+                mqtt_manager.register_error(f"Error reading NFC: {e}")
                 connected_nfc = False
         await asyncio.sleep(0.1)
 
@@ -183,7 +198,7 @@ async def publish_queued_data():
             if data_queue:
                 data = data_queue.pop(0)
                 # Use the MqttManager to publish
-                mqtt_manager.publish(config["READ_EVENT_PREFFIX"], data)
+                mqtt_manager.register_read(data)
         await asyncio.sleep(0.1)
 
 # --- Main (Heavily updated) ---

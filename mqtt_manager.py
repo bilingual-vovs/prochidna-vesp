@@ -4,6 +4,7 @@ import uasyncio
 from umqtt.simple import MQTTClient
 import ujson
 import time
+import re 
 
 class MqttManager:
     def __init__(self, config, led_cb, whitelist_cb, config_cb, reset_cb):
@@ -28,14 +29,25 @@ class MqttManager:
         self.is_connected = False
         
         # Define topics for easy access
-        self.topic_whitelist = f"{self.client_id}/{config['WHITELIST_TOPIC_SUFFIX']}"
-        self.topic_config_base = f"{self.client_id}/{config['CONFIG_TOPIC_SUFFIX']}"
-        self.topic_reset = f"{self.client_id}/{config['RESET_TOPIC_SUFFIX']}"
-        self.topic_online = f"online/{self.client_id}"
-        self.topic_offline = f"offline/{self.client_id}"
+        self.topic_whitelist = self.form_topic_sub(config['MANAGE_WHITELIST'])
+        self.topic_config_base = self.form_topic_sub(config['MANAGE_CONFIG'])
+        self.topic_reset = self.form_topic_sub(config['MANAGE_RESET'])
+
+        self.topic_online = self.form_topic_pub("online_EVENT")
+        self.topic_offline = self.form_topic_pub("offline_EVENT")
+        self.topic_read = self.form_topic_pub(config['READ_EVENT'])
+        self.topic_error = self.form_topic_pub("error_EVENT")
 
     def log(self, message):
         print(f"[{time.time()}] MQTT: {message}")
+
+    def form_topic_sub(self, subtopic):
+        r = re.sub(r'\$([^/]+)/', lambda m: self.config[m.group(1)]+'/', self.config["MQTT_NAMING_TEMPLATE_SUBSCRIBE"])
+        return re.sub(r'#', subtopic, r)
+    
+    def form_topic_pub(self, subtopic):
+        r = re.sub(r'\$([^/]+)/', lambda m: self.config[m.group(1)]+'/', self.config["MQTT_NAMING_TEMPLATE_PUBLISH"])
+        return re.sub(r'#', subtopic, r)
 
     def _callback(self, topic_bytes, msg_bytes):
         topic = topic_bytes.decode('utf-8')
@@ -100,11 +112,10 @@ class MqttManager:
                 self.log(f"Error in message_loop: {e}")
                 self.is_connected = False # Trigger reconnect on next iteration
 
-    def publish(self, topic_suffix, message):
+    def publish(self, topic, message):
         if not self.is_connected:
             return False
         try:
-            topic = f"{topic_suffix}/{self.client_id}"
             self.mqttc.publish(topic, str(message))
             self.log(f"Published to {topic}: {message}")
             return True
@@ -112,6 +123,12 @@ class MqttManager:
             self.log(f"Failed to publish: {e}")
             self.is_connected = False
             return False
+        
+    def register_read(self, data):
+        self.publish(self.topic_read, data)
+
+    def register_error(self, error_message):
+        self.publish(self.topic_error, error_message)
 
     def disconnect(self):
         if self.is_connected:
