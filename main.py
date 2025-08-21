@@ -6,11 +6,14 @@ from utils import generate_default_reader_id, connect_wifi
 from buzzer import BuzzerController
 from umqtt.simple import MQTTClient
 import ujson
-from light import Light_controller
+from led import LedController
 
-SOFTWARE = 'v2.9.2-configurable-wifi'
+
+SOFTWARE = 'v2.10.4-led'
 
 # --- Configuration ---
+LED_PIN = 32
+NUM_PIXELS = 24
 CONFIG_FILE = "config.json"
 DEFAULT_CONFIG = {
     # --- System Settings ---
@@ -34,8 +37,6 @@ DEFAULT_CONFIG = {
     
     # --- Hardware Pin Configuration ---
     "BUZZER_GPIO": 4,
-    "LIGHT_GREEN_GPIO": 15,
-    "LIGHT_RED_GPIO": 16,
     "SPI_SCK_GPIO": 18,
     "SPI_MOSI_GPIO": 23,
     "SPI_MISO_GPIO": 19,
@@ -64,12 +65,17 @@ queue_lock = asyncio.Lock()
 config = DEFAULT_CONFIG.copy()
 whitelist = set()
 rtc = RTC()
+led_state = {
+    'animation': 'loading', # Initial state
+    'duration': 0
+}
+
 
 # --- Global Hardware Objects (to be initialized later) ---
 spi_dev = None
 cs = None
 buzzer = None
-light = None
+led_controller = None
 
 
 # --- Helper Functions (Unchanged) ---
@@ -108,16 +114,17 @@ def apply_config():
 # --- Hardware and NFC Functions (Unchanged) ---
 def initialize_hardware():
     """Initializes hardware peripherals based on the loaded configuration."""
-    global spi_dev, cs, buzzer, light
+    global spi_dev, cs, buzzer, led_controller
     log("Initializing hardware with configured pins...")
     try:
+        led_controller = LedController(LED_PIN, NUM_PIXELS, led_state)
+        asyncio.create_task(led_controller.run())
         spi_dev = SPI(1, baudrate=1000000,
                       sck=Pin(config['SPI_SCK_GPIO']),
                       mosi=Pin(config['SPI_MOSI_GPIO']),
                       miso=Pin(config['SPI_MISO_GPIO']))
         cs = Pin(config['NFC_CS_GPIO'], Pin.OUT, value=1)
         buzzer = BuzzerController(config['BUZZER_GPIO'])
-        light = Light_controller(config['LIGHT_GREEN_GPIO'], config['LIGHT_RED_GPIO'])
         log("Hardware initialized successfully.")
         return True
     except Exception as e:
@@ -126,11 +133,13 @@ def initialize_hardware():
         return False
 
 async def connect_to_pn532():
-    global pn532, connected_nfc
+    global pn532, connected_nfc, led_state
     if pn532 is None:
         pn532 = nfc.PN532(spi_dev, cs)
     retries = 0
     while retries < config["CONNECTION_RETRIES"]:
+        led_state['animation'] = 'loading'
+        led_state['duration'] = 0  # No duration for loading animation
         try:
             ic, ver, rev, support = pn532.get_firmware_version()
             log('PN532 found, firmware version: {0}.{1}'.format(ver, rev))
@@ -147,7 +156,7 @@ async def connect_to_pn532():
     return False
 
 async def check_pn532_connection():
-    global connected_nfc
+    global connected_nfc, led_state
     while True:
         await asyncio.sleep(config["CONNECTION_CHECK_INTERVAL"])
         if not connected_nfc:
@@ -157,21 +166,27 @@ async def check_pn532_connection():
             try:
                 ic, ver, rev, support = pn532.get_firmware_version()
             except Exception as e:
+                led_state['animation'] = 'loading'  # Indicate failure
+                led_state['duration'] = 0  # Short duration for failure indication
                 log(f"PN532 connection lost: {e}")
                 connected_nfc = False
 
 async def indicate(i):
     if i:
-        asyncio.create_task(light.light_green(1))
+        led_state['animation'] = 'success'
+        led_state['duration'] = 0.7  
         asyncio.create_task(buzzer.play_melody(config["APROVAL_MELODY"]))
     else:
-        asyncio.create_task(light.light_red(1))
+        led_state['animation'] = 'failure'
+        led_state['duration'] = 0.7  
         asyncio.create_task(buzzer.play_melody(config["DENIAL_MELODY"]))
 
 async def read_nfc():
-    global last_uid, connected_nfc, data_queue, queue_lock, whitelist
+    global last_uid, connected_nfc, data_queue, queue_lock, whitelist,led_state
     while True:
         if connected_nfc:
+            led_state['animation'] = 'waiting'  # Pulsing blue
+            led_state['duration'] = 0
             try:
                 uid = pn532.read_passive_target(timeout=config["NFC_READ_TIMEOUT"])
                 if uid is not None:
@@ -198,11 +213,13 @@ async def read_nfc():
 
 # --- MQTT Functions (Unchanged) ---
 async def mqtt_connect():
-    global mqttc, connected_mqtt
+    global mqttc, connected_mqtt, led_state
     mqttc = MQTTClient(config["READER_ID_AFFIX"], config["BROKER_ADDR"], keepalive=120)
     mqttc.set_callback(mqtt_callback)
     retries = 0
     while retries < config["CONNECTION_RETRIES"]:
+        led_state['animation'] = 'loading'      
+        led_state['duration'] = 0
         try:
             mqttc.connect()
             mqttc.subscribe(f'{config["READER_ID_AFFIX"]}/{config["WHITELIST_TOPIC_SUFFIX"]}')
@@ -304,7 +321,6 @@ async def main():
     
     # This code only runs if hardware was initialized successfully
     buzzer.off()
-    light.off()
     
     await connect_to_pn532()
     await mqtt_connect()
@@ -312,6 +328,9 @@ async def main():
     asyncio.create_task(check_pn532_connection())
     asyncio.create_task(read_nfc())
     asyncio.create_task(publish_data())
+
+    led_state['animation'] = 'waiting'  # Start with pulsing blue
+    led_state['duration'] = 0  # No duration for pulsing animation
 
     # Main loop to keep the program running
     while True:
@@ -339,4 +358,5 @@ if __name__ == "__main__":
             log("Disconnecting from MQTT.")
             mqttc.publish(f'offline/{config["READER_ID_AFFIX"]}', config["READER_ID_AFFIX"])
             mqttc.disconnect()
+        led_controller.release()
         log("Done.")

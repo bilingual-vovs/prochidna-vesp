@@ -6,10 +6,6 @@
 		{
 			"name": "serial://dev/ttyUSB0",
 			"uri": "serial:///dev/ttyusb0/"
-		},
-		{
-			"name": "serial://dev/ttyUSB0",
-			"uri": "serial:///dev/ttyusb0/"
 		}
 	],
 	"settings": {}
