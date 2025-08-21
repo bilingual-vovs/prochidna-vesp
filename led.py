@@ -9,7 +9,7 @@ class LedController:
     An asynchronous controller for a NeoPixel LED ring that plays animations
     based on a shared state dictionary.
     """
-    def __init__(self, pin_num, num_pixels, shared_state,
+    def __init__(self, pin_num, num_pixels,
                 # Define standard colors
                 LIGHT_BLUE = (0, 100, 200),
                 PULSE_BLUE = (0, 50, 100), # Lower intensity for waiting
@@ -32,7 +32,6 @@ class LedController:
         """
         self.np = neopixel.NeoPixel(Pin(pin_num), num_pixels)
         self.num_pixels = num_pixels
-        self.shared_state = shared_state
 
         # Define standard colors
         self.LIGHT_BLUE = LIGHT_BLUE
@@ -45,6 +44,15 @@ class LedController:
         self.loading_pos = loading_pos
         self.pulse_angle = pulse_angle
         self.pulse_speed = pulse_speed
+
+        self.shared_state = {
+            'animation': 'loading', 
+            'duration': 0
+        }
+
+    def set_annimation(self, animation_name, duration=0):
+        self.shared_state['animation'] = animation_name
+        self.shared_state['duration'] = duration
         
     def fill(self, color):
         """Helper to fill the entire ring with a single color."""

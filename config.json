@@ -7,6 +7,7 @@
     "NFC_READ_TIMEOUT": 300,
     "MAX_QUEUE_SIZE": 50,
     "WHITELIST": ["86-225-141-90"],
+    "MQTT_DELAY": 500,
 
     "WIFI_SSID": "s5",
     "WIFI_PASSWORD": "opelvectra",
@@ -25,22 +26,21 @@
     "LED_GPIO": 32,  
 
     "APROVAL_MELODY": [
-        [659, 100],  
-        [698, 100],  
-        [784, 100]
+        [700, 100],  
+        [880, 100]
     ],
     "DENIAL_MELODY":[
-        [523, 200],  
-        [440, 200]
+        [430, 100],  
+        [320, 100]
     ],
 
     "LED_DIODS_AM": 24,
     "LED_COLOR_SUCCESS": [0, 255, 0],    
     "LED_COLOR_FAILURE": [255, 0, 0],      
-    "LED_COLOR_LOADING": [0, 100, 200],     
+    "LED_COLOR_LOADING": [255, 165, 0],     
     "LED_COLOR_WAITING": [0, 50, 100],     
     "LED_COLOR_OFF":     [0, 0, 0],
     "LED_LOADING_POS": 0,
     "LED_WAITING_PULSE_ANGLE": 0,
-    "LED_WAITING_PULSE_SPEED": 0.04
+    "LED_WAITING_PULSE_SPEED": 0.1
 }
