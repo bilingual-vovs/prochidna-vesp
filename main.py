@@ -10,7 +10,7 @@ from led import LedController
 
 freq(240000000) # TEMPORARY DECISION, FIX AT FIRST OPPORTUNITY
 
-SOFTWARE = 'v2.10.5-configurable-led'
+SOFTWARE = 'v2.10.6-configurable-led'
 
 # --- Configuration ---
 CONFIG_FILE = "config.json"
@@ -300,8 +300,8 @@ def mqtt_callback(topic, msg):
                 log(f"Unknown configuration variable: {config_var}")
                 return
             
-            if isinstance(config[config_var], int):
-                value = int(msg)
+            if isinstance(config[config_var], float):
+                value = float(msg)
             elif isinstance(config[config_var], list):
                 value = ujson.loads(msg)
             else:
