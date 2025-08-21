@@ -18,12 +18,11 @@
     "RESET_TOPIC_SUFFIX": "reset",
 
     "BUZZER_GPIO": 2,
-    "LIGHT_GREEN_GPIO": 32,
-    "LIGHT_RED_GPIO": 33,
     "SPI_SCK_GPIO": 16,
     "SPI_MOSI_GPIO": 14,
     "SPI_MISO_GPIO": 15,
     "NFC_CS_GPIO": 13,
+    "LED_GPIO": 32,  
 
     "APROVAL_MELODY": [
         [659, 100],  
@@ -33,5 +32,15 @@
     "DENIAL_MELODY":[
         [523, 200],  
         [440, 200]
-    ]
+    ],
+
+    "LED_DIODS_AM": 24,
+    "LED_COLOR_SUCCESS": [0, 255, 0],    
+    "LED_COLOR_FAILURE": [255, 0, 0],      
+    "LED_COLOR_LOADING": [0, 100, 200],     
+    "LED_COLOR_WAITING": [0, 50, 100],     
+    "LED_COLOR_OFF":     [0, 0, 0],
+    "LED_LOADING_POS": 0,
+    "LED_WAITING_PULSE_ANGLE": 0,
+    "LED_WAITING_PULSE_SPEED": 0.04
 }

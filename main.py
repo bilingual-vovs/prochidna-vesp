@@ -1,5 +1,5 @@
 import NFC_PN532 as nfc
-from machine import Pin, SPI, reset, RTC
+from machine import Pin, SPI, reset, RTC, freq
 import time
 import uasyncio as asyncio
 from utils import generate_default_reader_id, connect_wifi
@@ -8,12 +8,11 @@ from umqtt.simple import MQTTClient
 import ujson
 from led import LedController
 
+freq(240000000) # TEMPORARY DECISION, FIX AT FIRST OPPORTUNITY
 
-SOFTWARE = 'v2.10.4-led'
+SOFTWARE = 'v2.10.5-configurable-led'
 
 # --- Configuration ---
-LED_PIN = 32
-NUM_PIXELS = 24
 CONFIG_FILE = "config.json"
 DEFAULT_CONFIG = {
     # --- System Settings ---
@@ -41,6 +40,7 @@ DEFAULT_CONFIG = {
     "SPI_MOSI_GPIO": 23,
     "SPI_MISO_GPIO": 19,
     "NFC_CS_GPIO": 5,
+    "LED_GPIO": 32,  
     
     # --- Melodies --- 
     "APROVAL_MELODY": [
@@ -51,7 +51,18 @@ DEFAULT_CONFIG = {
     ],
     
     # --- Data ---
-    "WHITELIST": []
+    "WHITELIST": [],
+
+    # ---LED Settings (NEW)---
+    'LED_DIODS_AM': 24,
+    'LED_COLOR_SUCCESS': [0, 255, 0],       # Green
+    'LED_COLOR_FAILURE': [255, 0, 0],       # Red
+    'LED_COLOR_LOADING': [0, 100, 200],     # Light Blue
+    'LED_COLOR_WAITING': [0, 50, 100],      # Dimmer Blue
+    'LED_COLOR_OFF':     [0, 0, 0],         # Black
+    'LED_LOADING_POS': 0,
+    'LED_WAITING_PULSE_ANGLE': 0,
+    'LED_WAITING_PULSE_SPEED': 0.04
 }
 
 # --- Global State ---
@@ -117,7 +128,16 @@ def initialize_hardware():
     global spi_dev, cs, buzzer, led_controller
     log("Initializing hardware with configured pins...")
     try:
-        led_controller = LedController(LED_PIN, NUM_PIXELS, led_state)
+        led_controller = LedController(config['LED_GPIO'], config['LED_DIODS_AM'], led_state,
+                                       LIGHT_BLUE=config['LED_COLOR_LOADING'],
+                                       PULSE_BLUE=config['LED_COLOR_WAITING'],
+                                       GREEN=config['LED_COLOR_SUCCESS'],
+                                       RED=config['LED_COLOR_FAILURE'],
+                                       BLACK=config['LED_COLOR_OFF'],
+                                       
+                                       loading_pos=config['LED_LOADING_POS'],
+                                       pulse_angle=config['LED_WAITING_PULSE_ANGLE'],
+                                       pulse_speed=config['LED_WAITING_PULSE_SPEED'])
         asyncio.create_task(led_controller.run())
         spi_dev = SPI(1, baudrate=1000000,
                       sck=Pin(config['SPI_SCK_GPIO']),
