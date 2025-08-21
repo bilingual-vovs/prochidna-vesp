@@ -8,7 +8,7 @@
     "MAX_QUEUE_SIZE": 50,
     "WHITELIST": ["86-225-141-90"],
 
-    "READER_ID_AFFIX": "unidentified_reader",
+    "READER_ID_AFFIX": "immitator_1",
     "READ_EVENT_PREFFIX": "read",
     "WHITELIST_TOPIC_SUFFIX": "whitelist/update",
     "CONFIG_TOPIC_SUFFIX": "configure",

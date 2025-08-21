@@ -8,7 +8,7 @@ from umqtt.simple import MQTTClient
 import ujson
 from light import Light_controller
 
-SOFTWARE = 'v2.8.1-configurable-pins'
+SOFTWARE = 'v2.9.2-configurable-wifi'
 
 # --- Configuration ---
 CONFIG_FILE = "config.json"
@@ -19,6 +19,10 @@ DEFAULT_CONFIG = {
     "MQTT_RECONNECT_DELAY": 5,
     "NFC_READ_TIMEOUT": 300,
     "MAX_QUEUE_SIZE": 50,
+    
+    # --- Network Settings (NEW) ---
+    "WIFI_SSID": "prohidna",
+    "WIFI_PASSWORD": "admin1234",
     
     # --- MQTT Settings ---
     "BROKER_ADDR": '192.168.232.73',
@@ -68,7 +72,7 @@ buzzer = None
 light = None
 
 
-# --- Helper Functions ---
+# --- Helper Functions (Unchanged) ---
 def log(message):
     print(f"[{time.time()}] {message}")
 
@@ -77,7 +81,6 @@ def load_config():
     try:
         with open(CONFIG_FILE, 'r') as f:
             loaded_c = ujson.load(f)
-            # Merge loaded config with defaults to ensure all keys exist
             config = DEFAULT_CONFIG.copy()
             config.update(loaded_c)
         log("Configuration loaded and merged with defaults.")
@@ -102,6 +105,7 @@ def apply_config():
   global whitelist
   whitelist = set(config.get("WHITELIST", []))
 
+# --- Hardware and NFC Functions (Unchanged) ---
 def initialize_hardware():
     """Initializes hardware peripherals based on the loaded configuration."""
     global spi_dev, cs, buzzer, light
@@ -119,15 +123,12 @@ def initialize_hardware():
     except Exception as e:
         log(f"FATAL: Error initializing hardware: {e}")
         log("Please check pin configuration in 'config.json'. Device will halt.")
-        # In case of a bad pin config, we can't continue.
         return False
 
-# --- NFC Functions ---
 async def connect_to_pn532():
     global pn532, connected_nfc
     if pn532 is None:
         pn532 = nfc.PN532(spi_dev, cs)
-    # ... (rest of the function is unchanged) ...
     retries = 0
     while retries < config["CONNECTION_RETRIES"]:
         try:
@@ -145,7 +146,6 @@ async def connect_to_pn532():
     log("Failed to connect to PN532 after multiple retries.")
     return False
 
-# ... (check_pn532_connection, indicate, and read_nfc functions are unchanged) ...
 async def check_pn532_connection():
     global connected_nfc
     while True:
@@ -160,14 +160,13 @@ async def check_pn532_connection():
                 log(f"PN532 connection lost: {e}")
                 connected_nfc = False
 
-async def indicate(i): # Make the function async
+async def indicate(i):
     if i:
         asyncio.create_task(light.light_green(1))
         asyncio.create_task(buzzer.play_melody(config["APROVAL_MELODY"]))
     else:
         asyncio.create_task(light.light_red(1))
         asyncio.create_task(buzzer.play_melody(config["DENIAL_MELODY"]))
-
 
 async def read_nfc():
     global last_uid, connected_nfc, data_queue, queue_lock, whitelist
@@ -183,7 +182,7 @@ async def read_nfc():
                         log(f"Card Found! UID (hexadecimal): {uid_str_hex}, UID (decimal): {uid_str_dec}")
                         if uid_str_dec in whitelist:
                             log("Card is whitelisted. Access granted.")
-                            asyncio.create_task(indicate(True)) # Indicate whitelisted card
+                            asyncio.create_task(indicate(True))
                             async with queue_lock:
                                 if len(data_queue) < config["MAX_QUEUE_SIZE"]:
                                     data_queue.append(uid_str_dec)
@@ -191,17 +190,16 @@ async def read_nfc():
                                     log("Data queue is full. Discarding data.")
                         else:
                             log("Card is NOT whitelisted. Access denied.")
-                            asyncio.create_task(indicate(False)) # Indicate not whitelisted card
+                            asyncio.create_task(indicate(False))
             except Exception as e:
                 log(f"Error reading NFC: {e}")
                 connected_nfc = False
         await asyncio.sleep(0.1)
 
-# --- MQTT Functions ---
+# --- MQTT Functions (Unchanged) ---
 async def mqtt_connect():
     global mqttc, connected_mqtt
-    # ... (function is unchanged) ...
-    mqttc = MQTTClient(config["READER_ID_AFFIX"], config["BROKER_ADDR"], keepalive=60)
+    mqttc = MQTTClient(config["READER_ID_AFFIX"], config["BROKER_ADDR"], keepalive=120)
     mqttc.set_callback(mqtt_callback)
     retries = 0
     while retries < config["CONNECTION_RETRIES"]:
@@ -223,7 +221,6 @@ async def mqtt_connect():
     reset()
     return False
 
-# ... (publish_data function is unchanged) ...
 async def publish_data():
     global connected_mqtt, data_queue, queue_lock
     while True:
@@ -245,8 +242,7 @@ def mqtt_callback(topic, msg):
     topic = topic.decode('utf-8')
     msg = msg.decode('utf-8')
     log(f"Received MQTT message on topic: {topic}, message: {msg}")
-
-    # --- Whitelist Update Logic (Unchanged) ---
+    
     if topic == f'{config["READER_ID_AFFIX"]}/{config["WHITELIST_TOPIC_SUFFIX"]}':
         try:
             new_whitelist = ujson.loads(msg)
@@ -260,27 +256,24 @@ def mqtt_callback(topic, msg):
         except Exception as e:
             log(f"Error processing whitelist update: {e}")
             
-    # --- Configuration Update Logic (Updated) ---
     elif topic.startswith(f'{config["READER_ID_AFFIX"]}/{config["CONFIG_TOPIC_SUFFIX"]}/'):
         config_var = topic.split('/')[-1]
         try:
             if config_var not in config:
                 log(f"Unknown configuration variable: {config_var}")
                 return
-
-            # Attempt to convert message to the correct type
+            
             if isinstance(config[config_var], int):
                 value = int(msg)
             elif isinstance(config[config_var], list):
-                value = ujson.loads(msg) # For melodies
+                value = ujson.loads(msg)
             else:
-                value = str(msg) # Default to string
+                value = str(msg)
 
             config[config_var] = value
             log(f"Configuration variable '{config_var}' updated to '{value}'")
             save_config()
             
-            # If a non-trivial config is changed, reset to apply it
             vars_that_dont_need_reset = [
                 "CONNECTION_CHECK_INTERVAL", "CONNECTION_RETRIES", 
                 "MAX_QUEUE_SIZE", "READ_EVENT_PREFFIX"
@@ -292,7 +285,7 @@ def mqtt_callback(topic, msg):
         except Exception as e:
             log(f"Error processing configuration update for '{config_var}': {e}")
 
-# --- Main ---
+# --- Main (Updated) ---
 async def main():
     global SOFTWARE, connected_mqtt
     log("Loading software version: " + SOFTWARE)
@@ -301,13 +294,15 @@ async def main():
 
     # Initialize hardware AFTER loading config
     if not initialize_hardware():
-        log("Hardware initialization failed. Exiting...")
-        buzzer.off()
-        light.off()
+        log("Hardware initialization failed. The device will not continue.")
         return # Stop execution if hardware fails
 
-    log("Network config: " + str(connect_wifi('s5', 'opelvectra')))
+    # Use the configured Wi-Fi credentials
+    log(f"Connecting to WiFi SSID: {config['WIFI_SSID']}")
+    wifi_connected = connect_wifi(config['WIFI_SSID'], config['WIFI_PASSWORD'])
+    log("Network connection successful: " + str(wifi_connected))
     
+    # This code only runs if hardware was initialized successfully
     buzzer.off()
     light.off()
     

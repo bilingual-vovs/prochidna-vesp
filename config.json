@@ -8,6 +8,9 @@
     "MAX_QUEUE_SIZE": 50,
     "WHITELIST": ["86-225-141-90"],
 
+    "WIFI_SSID": "s5",
+    "WIFI_PASSWORD": "opelvectra",
+
     "READER_ID_AFFIX": "reader_real",
     "READ_EVENT_PREFFIX": "read",
     "WHITELIST_TOPIC_SUFFIX": "whitelist/update",
