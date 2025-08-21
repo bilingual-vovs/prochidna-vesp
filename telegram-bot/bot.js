@@ -99,11 +99,10 @@ bot.on('message', (msg) => {
 
     switch (sp[0]) {
         case '/whitelist_update':
-            client.publish(`${sp[1]}/whitelist/update`, sp[2])
-            console.log(`${sp[1]}/whitelist/update`)
+            client.publish(`device/${sp[1]}/manage/whitelist/update`, sp[2])
             break;
         case "/configure":
-            client.publish(`${sp[2]}/configure/${sp[1]}`, sp[3])
+            client.publish(`device/${sp[2]}/manage/configure/${sp[1]}`, sp[3])
             break
         case "/readers":
             bot.sendMessage(msg.chat.id, readers.join('\n') + " __")

@@ -8,9 +8,7 @@ import ujson
 from led import LedController
 from mqtt_manager import MqttManager # <-- NEW IMPORT
 
-freq(240000000)
-
-SOFTWARE = 'v2.13.6-topic-naming'
+SOFTWARE = 'v2.13.14-topic-naming'
 
 # --- Configuration (Unchanged) ---
 CONFIG_FILE = "config.json"
@@ -27,7 +25,6 @@ DEFAULT_CONFIG = {
     "MQTT_NAMING_TEMPLATE_SUBSCRIBE": "device/$READER_ID_AFFIX/manage/#",
     "MQTT_NAMING_TEMPLATE_PUBLISH": "device/$READER_ID_AFFIX/events/#",
     
-    "READER_ID_AFFIX": "reader_real",
     "READ_EVENT": "read",
     "ERROR_EVENT": "error",
     "ONLINE_EVENT": "online",
@@ -115,22 +112,21 @@ async def connect_to_pn532():
     global pn532, connected_nfc, led_controller
     if pn532 is None:
         pn532 = nfc.PN532(spi_dev, cs)
-        retries = 0
-        while retries < config["CONNECTION_RETRIES"]:
-            led_controller.set_annimation('loading')  # Set loading animation
-            try:
-                ic, ver, rev, support = pn532.get_firmware_version()
-                log('PN532 found, firmware version: {0}.{1}'.format(ver, rev))
-                pn532.SAM_configuration()
-                connected_nfc = True
-                return True
-            except RuntimeError as e:
-                log(f"Error connecting to PN532: {e}. Retrying...")
-                retries += 1
-                await asyncio.sleep(1)
-                mqtt_manager.register_error(f"Error connecting to PN532: {e}")
-                log("Failed to connect to PN532 after multiple retries.")
-                return False
+    retries = 0
+    while retries < config["CONNECTION_RETRIES"]:
+        led_controller.set_annimation('loading')  # Set loading animation
+        try:
+            ic, ver, rev, support = pn532.get_firmware_version()
+            log('PN532 found, firmware version: {0}.{1}'.format(ver, rev))
+            pn532.SAM_configuration()
+            connected_nfc = True
+            return True
+        except RuntimeError as e:
+            log(f"Error connecting to PN532: {e}. Retrying...")
+            retries += 1
+            await asyncio.sleep(1)
+            log("Failed to connect to PN532 after multiple retries.")
+            return False
             
 
 async def check_pn532_connection():
@@ -146,6 +142,7 @@ async def check_pn532_connection():
             except Exception as e:
                 led_controller.set_annimation("loading") # Short duration for failure indication
                 log(f"PN532 connection lost: {e}")
+                mqtt_manager.register_error(f"PN532 connection lost: {e}")
                 connected_nfc = False
                 
 
@@ -188,7 +185,7 @@ async def read_nfc():
                 log(f"Error reading NFC: {e}")
                 mqtt_manager.register_error(f"Error reading NFC: {e}")
                 connected_nfc = False
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.01)
 
 # --- NEW: Task to publish queued data ---
 async def publish_queued_data():

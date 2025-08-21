@@ -33,20 +33,20 @@ class MqttManager:
         self.topic_config_base = self.form_topic_sub(config['MANAGE_CONFIG'])
         self.topic_reset = self.form_topic_sub(config['MANAGE_RESET'])
 
-        self.topic_online = self.form_topic_pub("online_EVENT")
-        self.topic_offline = self.form_topic_pub("offline_EVENT")
+        self.topic_online = self.form_topic_pub(config["ONLINE_EVENT"])
+        self.topic_offline = self.form_topic_pub(config["OFFLINE_EVENT"])
         self.topic_read = self.form_topic_pub(config['READ_EVENT'])
-        self.topic_error = self.form_topic_pub("error_EVENT")
+        self.topic_error = self.form_topic_pub(config["ERROR_EVENT"])
 
     def log(self, message):
         print(f"[{time.time()}] MQTT: {message}")
 
     def form_topic_sub(self, subtopic):
-        r = re.sub(r'\$([^/]+)/', lambda m: self.config[m.group(1)]+'/', self.config["MQTT_NAMING_TEMPLATE_SUBSCRIBE"])
+        r = re.sub(r'\$([A-Z0-9_]+)', lambda m: self.config[m.group(1)], self.config["MQTT_NAMING_TEMPLATE_SUBSCRIBE"])
         return re.sub(r'#', subtopic, r)
     
     def form_topic_pub(self, subtopic):
-        r = re.sub(r'\$([^/]+)/', lambda m: self.config[m.group(1)]+'/', self.config["MQTT_NAMING_TEMPLATE_PUBLISH"])
+        r = re.sub(r'\$([A-Z0-9_]+)', lambda m: self.config[m.group(1)], self.config["MQTT_NAMING_TEMPLATE_PUBLISH"])
         return re.sub(r'#', subtopic, r)
 
     def _callback(self, topic_bytes, msg_bytes):
