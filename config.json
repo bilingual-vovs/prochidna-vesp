@@ -12,12 +12,12 @@
     "WIFI_SSID": "s5",
     "WIFI_PASSWORD": "opelvectra",
 
-    "BUZZER_GPIO": 2,
-    "SPI_SCK_GPIO": 16,
-    "SPI_MOSI_GPIO": 14,
-    "SPI_MISO_GPIO": 15,
-    "NFC_CS_GPIO": 13,
-    "LED_GPIO": 32,  
+    "BUZZER_GPIO": 35,
+    "SPI_SCK_GPIO": 0,
+    "SPI_MOSI_GPIO": 2,
+    "SPI_MISO_GPIO": 1,
+    "NFC_CS_GPIO": 3,
+    "LED_GPIO": 34,
 
     "APROVAL_MELODY": [
         [700, 100],  

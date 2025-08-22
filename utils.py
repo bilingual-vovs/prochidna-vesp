@@ -1,6 +1,6 @@
 def generate_default_reader_id():
     """Generates a default reader ID based on the MAC address."""
-    import network, binascii
+    import network, binascii # type: ignore
     wlan = network.WLAN(network.STA_IF)
     mac = wlan.config('mac')
     mac_str = binascii.hexlify(mac).decode('utf-8')
@@ -8,7 +8,7 @@ def generate_default_reader_id():
 
 
 def connect_wifi(SSID='prohidna', password='12345678'):
-    import network
+    import network # type: ignore
     sta_if = network.WLAN(network.STA_IF)
     if not sta_if.isconnected():
         sta_if.active(True)

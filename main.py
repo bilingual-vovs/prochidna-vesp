@@ -1,7 +1,7 @@
-import NFC_PN532 as nfc
-from machine import Pin, SPI, reset, RTC, freq
+import NFC_PN532 as nfc # type: ignore
+from machine import Pin, SPI, reset, RTC, freq # type: ignore
 import time
-import uasyncio as asyncio
+import uasyncio as asyncio # pyright: ignore[reportMissingImports]
 from utils import generate_default_reader_id, connect_wifi
 from buzzer import BuzzerController
 import ujson
@@ -49,8 +49,8 @@ def load_config():
     # ... (Unchanged)
     global config;import ujson;from utils import generate_default_reader_id;
     try:
-        with open(CONFIG_FILE,'r')as f:config=DEFAULT_CONFIG.copy();config.update(ujson.load(f));
-        log("Config loaded.");
+        with open(CONFIG_FILE,'r')as f:config=DEFAULT_CONFIG.copy();config.update(ujson.load(f))
+        log("Config loaded.")
         if config["READER_ID_AFFIX"]=="unidentified_reader":config["READER_ID_AFFIX"]=generate_default_reader_id();save_config();log(f"Generated UID:{config['READER_ID_AFFIX']}")
     except Exception as e:log(f"Config load error:{e}.Using defaults.");config=DEFAULT_CONFIG.copy();save_config()
 
@@ -72,7 +72,7 @@ def handle_whitelist_update(new_whitelist):
 
 def handle_config_update(config_var, msg):
     """Callback function for the MqttManager to handle config messages."""
-    global config
+    global config, mqtt_manager
     try:
         if config_var not in config: return log(f"Unknown config var: {config_var}")
         # Your type conversion logic
@@ -88,12 +88,12 @@ def handle_config_update(config_var, msg):
             log(f"Resetting to apply changes for '{config_var}'..."); reset()
     except Exception as e:
         log(f"Error processing config update for '{config_var}': {e}")
-        mqtt_manager.register_error(f"Error processing config update for '{config_var}': {e}")
+        mqtt_manager.register_error(f"Error processing config update for '{config_var}': {e}") # type: ignore
 
 # --- Hardware and NFC (Slightly simplified) ---
 def initialize_hardware():
     global spi_dev, cs, buzzer, led_controller
-    log("Initializing hardware...");
+    log("Initializing hardware...")
     try:
         led_controller = LedController(config['LED_GPIO'], config['LED_DIODS_AM'],
             LIGHT_BLUE=config['LED_COLOR_LOADING'], PULSE_BLUE=config['LED_COLOR_WAITING'], GREEN=config['LED_COLOR_SUCCESS'],
@@ -114,7 +114,7 @@ async def connect_to_pn532():
         pn532 = nfc.PN532(spi_dev, cs)
     retries = 0
     while retries < config["CONNECTION_RETRIES"]:
-        led_controller.set_annimation('loading')  # Set loading animation
+        led_controller.set_annimation('loading')  # type: ignore # Set loading animation
         try:
             ic, ver, rev, support = pn532.get_firmware_version()
             log('PN532 found, firmware version: {0}.{1}'.format(ver, rev))
@@ -138,30 +138,30 @@ async def check_pn532_connection():
             await connect_to_pn532()
         else:
             try:
-                ic, ver, rev, support = pn532.get_firmware_version()
+                ic, ver, rev, support = pn532.get_firmware_version() # type: ignore
             except Exception as e:
-                led_controller.set_annimation("loading") # Short duration for failure indication
+                led_controller.set_annimation("loading") # type: ignore # Short duration for failure indication
                 log(f"PN532 connection lost: {e}")
-                mqtt_manager.register_error(f"PN532 connection lost: {e}")
+                mqtt_manager.register_error(f"PN532 connection lost: {e}") # type: ignore
                 connected_nfc = False
                 
 
 async def indicate(i):
     if i:
-        led_controller.set_annimation('success', 0.7)
-        buzzer.play_approval()  # Play approval melody
+        led_controller.set_annimation('success', 0.7) # type: ignore
+        buzzer.play_approval()  # type: ignore # Play approval melody
     else:
-        led_controller.set_annimation('failure', 0.7)  # Short failure indication
-        buzzer.play_denial()  # Play denial melody
+        led_controller.set_annimation('failure', 0.7)  # type: ignore # Short failure indication
+        buzzer.play_denial()  # type: ignore # Play denial melody
                 
 
 async def read_nfc():
     global last_uid, connected_nfc, data_queue, queue_lock, whitelist
     while True:
         if connected_nfc:
-            led_controller.set_annimation('waiting')  # Set loading animation
+            led_controller.set_annimation('waiting')  # type: ignore # Set loading animation
             try:
-                uid = pn532.read_passive_target(timeout=config["NFC_READ_TIMEOUT"])
+                uid = pn532.read_passive_target(timeout=config["NFC_READ_TIMEOUT"]) # type: ignore
                 if uid is not None:
                     uid_str_hex = '-'.join(['{:02X}'.format(i) for i in uid])
                     uid_str_dec = '-'.join([str(i) for i in uid])
@@ -170,8 +170,8 @@ async def read_nfc():
                         log(f"Card Found! UID (hexadecimal): {uid_str_hex}, UID (decimal): {uid_str_dec}")
                         if uid_str_dec in whitelist:
                             log("Card is whitelisted. Access granted.")
-                            led_controller.set_annimation('success', 0.7)
-                            asyncio.create_task(buzzer.play_approval())  # Play approval melody
+                            led_controller.set_annimation('success', 0.7) # type: ignore
+                            asyncio.create_task(buzzer.play_approval())  # type: ignore # Play approval melody
                             async with queue_lock:
                                 if len(data_queue) < config["MAX_QUEUE_SIZE"]:
                                     data_queue.append(uid_str_dec)
@@ -179,11 +179,11 @@ async def read_nfc():
                                     log("Data queue is full. Discarding data.")
                         else:
                             log("Card is NOT whitelisted. Access denied.")
-                            led_controller.set_annimation('failure', 0.7)
-                            asyncio.create_task(buzzer.play_denial())  # Play denial melody
+                            led_controller.set_annimation('failure', 0.7) # type: ignore
+                            asyncio.create_task(buzzer.play_denial())  # type: ignore # Play denial melody
             except Exception as e:
                 log(f"Error reading NFC: {e}")
-                mqtt_manager.register_error(f"Error reading NFC: {e}")
+                mqtt_manager.register_error(f"Error reading NFC: {e}") # type: ignore
                 connected_nfc = False
         await asyncio.sleep(0.01)
 
@@ -195,7 +195,7 @@ async def publish_queued_data():
             if data_queue:
                 data = data_queue.pop(0)
                 # Use the MqttManager to publish
-                mqtt_manager.register_read(data)
+                mqtt_manager.register_read(data) # type: ignore
         await asyncio.sleep(0.1)
 
 # --- Main (Heavily updated) ---
@@ -207,11 +207,11 @@ async def main():
 
     log(f"Connecting to WiFi: {config['WIFI_SSID']}")
     connect_wifi(config['WIFI_SSID'], config['WIFI_PASSWORD'])
-    buzzer.off()
+    buzzer.off() # type: ignore
 
     # Initialize and connect the MQTT Manager
     mqtt_manager = MqttManager(
-        config=config, led_cb=led_controller.set_annimation, # Assumes LedController has such a method
+        config=config, led_cb=led_controller.set_annimation, # Assumes LedController has such a method # type: ignore
         whitelist_cb=handle_whitelist_update, config_cb=handle_config_update, reset_cb=reset
     )
     if not await mqtt_manager.connect():

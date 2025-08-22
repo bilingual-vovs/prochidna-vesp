@@ -1,5 +1,5 @@
-from machine import Pin, PWM
-import uasyncio as asyncio
+from machine import Pin, PWM # type: ignore
+import uasyncio as asyncio # type: ignore
 
 class BuzzerController:
     """Controls a buzzer connected to a specific pin to make approval/denial sounds (asynchronously)."""
