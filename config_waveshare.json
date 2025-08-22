@@ -4,31 +4,51 @@
     "CLIENT_NAME": "blue",
     "BROKER_ADDR": "192.168.31.70",
     "MQTT_RECONNECT_DELAY": 5,
-    "NFC_READ_TIMEOUT": 300,
+    "NFC_READ_TIMEOUT": 9,
     "MAX_QUEUE_SIZE": 50,
-    "WHITELIST": [""],
+    "WHITELIST": ["86-225-141-90"],
+    "MQTT_DELAY": 500,
 
-    "READER_ID_AFFIX": "unidentified_reader",
-    "READ_EVENT_PREFFIX": "read",
-    "WHITELIST_TOPIC_SUFFIX": "whitelist/update",
-    "CONFIG_TOPIC_SUFFIX": "configure",
-    "RESET_TOPIC_SUFFIX": "reset",
+    "WIFI_SSID": "s5",
+    "WIFI_PASSWORD": "opelvectra",
 
     "BUZZER_GPIO": 35,
-    "LIGHT_GREEN_GPIO": 34,
-    "LIGHT_RED_GPIO": 33,
     "SPI_SCK_GPIO": 0,
     "SPI_MOSI_GPIO": 2,
     "SPI_MISO_GPIO": 1,
     "NFC_CS_GPIO": 3,
+    "LED_GPIO": 34,
 
     "APROVAL_MELODY": [
-        [659, 100],  
-        [698, 100],  
-        [784, 100]
+        [700, 100],  
+        [880, 100]
     ],
     "DENIAL_MELODY":[
-        [523, 200],  
-        [440, 200]
-    ]
+        [430, 100],  
+        [320, 100]
+    ],
+
+    "LED_DIODS_AM": 24,
+    "LED_COLOR_SUCCESS": [0, 255, 0],    
+    "LED_COLOR_FAILURE": [255, 0, 0],      
+    "LED_COLOR_LOADING": [255, 165, 0],     
+    "LED_COLOR_WAITING": [0, 50, 100],     
+    "LED_COLOR_OFF":     [0, 0, 0],
+    "LED_LOADING_POS": 0,
+    "LED_WAITING_PULSE_ANGLE": 0,
+    "LED_WAITING_PULSE_SPEED": 0.1,
+
+    "MQTT_NAMING_TEMPLATE_SUBSCRIBE": "device/$READER_ID_AFFIX/manage/#",
+    "MQTT_NAMING_TEMPLATE_PUBLISH": "device/$READER_ID_AFFIX/events/#",
+    
+    "READER_ID_AFFIX": "reader_real",
+    "READ_EVENT": "read",
+    "ERROR_EVENT": "error",
+    "ONLINE_EVENT": "online",
+    "OFFLINE_EVENT": "offline",
+    "TELEMETRY_EVENT": "telemetry",
+
+    "MANAGE_WHITELIST": "whitelist/update",
+    "MANAGE_CONFIG": "configure",
+    "MANAGE_RESET": "reset"
 }
