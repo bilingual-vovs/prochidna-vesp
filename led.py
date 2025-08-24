@@ -9,19 +9,7 @@ class LedController:
     An asynchronous controller for a NeoPixel LED ring that plays animations
     based on a shared state dictionary.
     """
-    def __init__(self, pin_num, num_pixels,
-                # Define standard colors
-                LIGHT_BLUE = (0, 100, 200),
-                PULSE_BLUE = (0, 50, 100), # Lower intensity for waiting
-                GREEN = (0, 255, 0),
-                RED = (255, 0, 0),
-                BLACK = (0, 0, 0),
-                
-                # State variables for animations
-                loading_pos = 0,
-                pulse_angle = 0.9,
-                pulse_speed = 0.1       
-            ):
+    def __init__(self, pin_num, num_pixels, config):
         """
         Initializes the controller.
         :param pin_num: The GPIO pin number for the NeoPixel data line.
@@ -34,16 +22,16 @@ class LedController:
         self.num_pixels = num_pixels
 
         # Define standard colors
-        self.LIGHT_BLUE = LIGHT_BLUE
-        self.PULSE_BLUE = PULSE_BLUE  # Lower intensity for waiting
-        self.GREEN = GREEN
-        self.RED = RED
-        self.BLACK = BLACK
+        self.LIGHT_BLUE = config['LED_COLOR_LOADING']  # Color for loading animation
+        self.PULSE_BLUE = config['LED_COLOR_WAITING']  # Lower intensity for waiting
+        self.GREEN = config['LED_COLOR_SUCCESS']
+        self.RED = config['LED_COLOR_FAILURE']
+        self.BLACK = config['LED_COLOR_OFF']
         
         # State variables for animations
-        self.loading_pos = loading_pos
-        self.pulse_angle = pulse_angle
-        self.pulse_speed = pulse_speed
+        self.loading_pos = config['LED_LOADING_POS']  # Current position of the loading "spinner"
+        self.pulse_angle = config['LED_WAITING_PULSE_ANGLE']  # Current angle for pulsing effect
+        self.pulse_speed = config['LED_WAITING_PULSE_SPEED']  # Speed of the pulsing effect
 
         self.shared_state = {
             'animation': 'loading', 

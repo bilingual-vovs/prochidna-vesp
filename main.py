@@ -94,10 +94,7 @@ def initialize_hardware():
     global spi_dev, cs, buzzer, led_controller
     log("Initializing hardware...")
     try:
-        led_controller = LedController(config['LED_GPIO'], config['LED_DIODS_AM'],
-            LIGHT_BLUE=config['LED_COLOR_LOADING'], PULSE_BLUE=config['LED_COLOR_WAITING'], GREEN=config['LED_COLOR_SUCCESS'],
-            RED=config['LED_COLOR_FAILURE'], BLACK=config['LED_COLOR_OFF'], loading_pos=config['LED_LOADING_POS'],
-            pulse_angle=config['LED_WAITING_PULSE_ANGLE'], pulse_speed=config['LED_WAITING_PULSE_SPEED'])
+        led_controller = LedController(config['LED_GPIO'], config['LED_DIODS_AM'], config)
         asyncio.create_task(led_controller.run())
         spi_dev = SPI(1, baudrate=1000000, sck=Pin(config['SPI_SCK_GPIO']), mosi=Pin(config['SPI_MOSI_GPIO']), miso=Pin(config['SPI_MISO_GPIO']))
         cs = Pin(config['NFC_CS_GPIO'], Pin.OUT, value=1)

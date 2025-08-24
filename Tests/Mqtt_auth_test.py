@@ -21,6 +21,7 @@ async def main():
     credits = load_credentials()
     log(f"Device ID: {credits['CLIENT_ID']}")
     log(f"Reader ID: {credits.get('READER_ID', generate_default_reader_id())}")
+    log(credits['WIFI_SSID'] + " : " + credits['WIFI_PASSWORD'])
     connect_wifi(credits['WIFI_SSID'], credits['WIFI_PASSWORD'])
 
     load_config()
