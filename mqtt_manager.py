@@ -1,10 +1,11 @@
 # mqtt_manager.py
 
 import uasyncio
-from umqtt.simple import MQTTClient
+from umqtt.simple import MQTTClient # type: ignore
 import ujson
 import time
 import re 
+from utils import load_credentials
 
 class MqttManager:
     def __init__(self, config, led_cb, whitelist_cb, config_cb, reset_cb):
@@ -22,9 +23,15 @@ class MqttManager:
         self.config_callback = config_cb
         self.reset_callback = reset_cb
 
-        self.client_id = config['READER_ID_AFFIX']
-        self.broker = config['BROKER_ADDR']
-        self.mqttc = MQTTClient(self.client_id, self.broker, keepalive=120)
+        self._credentials = load_credentials()
+
+        self.client_id = self._credentials['CLIENT_ID']
+        self.broker = self._credentials['BROKER_ADDR']
+        self.mqttc = MQTTClient(self.client_id, 
+                                self.broker, 
+                                user=self._credentials['CLIENT_NAME'],
+                                password=self._credentials['MQTT_PASSWORD'],
+                                keepalive=120)
         self.mqttc.set_callback(self._callback)
         self.is_connected = False
         
@@ -78,7 +85,9 @@ class MqttManager:
             self.led_callback('waiting', 0)  # Indicate connection attempt
             try:
                 self.log(f"Attempting to connect to broker at {self.broker}...")
-                self.mqttc.connect()
+                self.mqttc.connect(clean_session=False)
+
+                #  ---------------- INDEV SOLUTION, NEEDS TO BE CHANGED WHEN PRODUCTION BROCKER WILL BE AWAIBLE ----------------
                 
                 self.mqttc.subscribe(self.topic_whitelist)
                 self.mqttc.subscribe(f"{self.topic_config_base}/#")

@@ -55,7 +55,6 @@ def load_config():
     except Exception as e:log(f"Config load error:{e}.Using defaults.");config=DEFAULT_CONFIG.copy();save_config()
 
 def save_config():
-    # ... (Unchanged)
     try:
         with open(CONFIG_FILE,'w')as f:ujson.dump(config,f);log("Config saved.")
     except Exception as e:log(f"Config save error:{e}")

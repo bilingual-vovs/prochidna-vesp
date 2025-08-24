@@ -16,3 +16,12 @@ def connect_wifi(SSID='prohidna', password='12345678'):
         while not sta_if.isconnected():
             pass # wait till connection
     return sta_if.ifconfig()
+
+def load_credentials():
+    import ujson
+    try:
+        with open('secrets.json', 'r') as f:
+            return ujson.load(f)
+    except Exception as e:
+        print(f"Error loading credentials: {e}. Maybe the file is missing or corrupted.")
+        return {}
