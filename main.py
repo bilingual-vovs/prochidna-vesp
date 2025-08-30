@@ -10,7 +10,7 @@ from mqtt_manager import MqttManager # <-- NEW IMPORT
 import ntptime
 import json
 
-SOFTWARE = 'v2.13.14-topic-naming'
+SOFTWARE = 'v2.15.2-whitelist-operations'
 
 # --- Configuration (Unchanged) ---
 CONFIG_FILE = "config.json"
@@ -32,7 +32,10 @@ DEFAULT_CONFIG = {
     "OFFLINE_EVENT": "offline",
     "TELEMETRY_EVENT": "telemetry",
 
-    "MANAGE_WHITELIST": "whitelist/update",
+    "MANAGE_WHITELIST": "whitelist/#",
+    "MANAGE_WHITELIST_ADD": "add",
+    "MANAGE_WHITELIST_REMOVE": "remove",
+    "MANAGE_WHITELIST_UPDATE": "update",
     "MANAGE_CONFIG": "configure",
     "MANAGE_RESET": "reset"
 }
@@ -64,9 +67,30 @@ def apply_config():
   global whitelist; whitelist = set(config.get("WHITELIST", []))
 
 # --- NEW: MQTT Callback Handlers ---
-def handle_whitelist_update(new_whitelist):
+def handle_whitelist_update(action, data):
     """Callback function for the MqttManager to handle whitelist messages."""
-    global config; config["WHITELIST"] = new_whitelist
+    if action == "add":
+        for entry in data:
+            if entry not in whitelist:
+                whitelist.add(entry)
+                log(f"Whitelist entry added: {entry}")
+            else:
+                log(f"Whitelist entry already exists: {entry}")
+    elif action == "remove":
+        for entry in data:  
+            if entry in whitelist:
+                whitelist.remove(entry)
+                log(f"Whitelist entry removed: {entry}")
+            else:
+                log(f"Whitelist entry not found: {entry}")  
+    elif action == "update":                            
+        if isinstance(data, list):
+            whitelist.clear()
+            whitelist.update(data)
+            log("Whitelist updated.")
+        else:
+            log("Invalid data for whitelist update. Expected a list.")
+    global config; config["WHITELIST"] = whitelist
     apply_config(); save_config()
     log("Whitelist update applied.")
 

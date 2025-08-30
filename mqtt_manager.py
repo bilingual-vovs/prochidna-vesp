@@ -47,6 +47,10 @@ class MqttManager:
         self.topic_read = self.form_topic_pub(config['READ_EVENT'])
         self.topic_error = self.form_topic_pub(config["ERROR_EVENT"])
 
+        self.whitelist_add = config["MANAGE_WHITELIST_ADD"]
+        self.whitelist_remove = config["MANAGE_WHITELIST_REMOVE"]
+        self.whitelist_Update = config["MANAGE_WHITELIST_UPDATE"]
+
     def log(self, message):
         print(f"[{time.time()}] MQTT: {message}")
 
@@ -64,14 +68,34 @@ class MqttManager:
         self.log(f"Received message on topic: {topic}")
 
         if topic == self.topic_whitelist:
-            try:
-                new_whitelist = ujson.loads(msg)
-                if isinstance(new_whitelist, list):
-                    self.whitelist_callback(new_whitelist)
-                else:
-                    self.log("Invalid whitelist format. Expected a list.")
-            except Exception as e:
-                self.log(f"Error processing whitelist update: {e}")
+            action = topic.split('/')[-1]
+            if action == self.whitelist_add:
+                try:
+                    new_entry = ujson.loads(msg)
+                    if isinstance(new_entry, dict) and "uid_dec" in new_entry:
+                        self.whitelist_callback("add", new_entry)
+                    else:
+                        self.log("Invalid whitelist entry format. Expected a dict with 'uid_dec'.")
+                except Exception as e:
+                    self.log(f"Error processing whitelist addition: {e}")
+            elif action == self.whitelist_remove:
+                try:
+                    entry_to_remove = ujson.loads(msg)
+                    if isinstance(entry_to_remove, dict) and "uid_dec" in entry_to_remove:
+                        self.whitelist_callback("remove", entry_to_remove)
+                    else:
+                        self.log("Invalid whitelist entry format. Expected a dict with 'uid_dec'.")
+                except Exception as e:
+                    self.log(f"Error processing whitelist removal: {e}")
+            elif action == self.whitelist_Update:
+                try:
+                    new_whitelist = ujson.loads(msg)
+                    if isinstance(new_whitelist, list):
+                        self.whitelist_callback("update", new_whitelist)
+                    else:
+                        self.log("Invalid whitelist format. Expected a list.")
+                except Exception as e:
+                    self.log(f"Error processing whitelist update: {e}")
         
         elif topic.startswith(self.topic_config_base):
             config_var = topic.split('/')[-1]
