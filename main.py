@@ -2,7 +2,7 @@ import NFC_PN532 as nfc # type: ignore
 from machine import Pin, SPI, reset, RTC, freq # type: ignore
 import time
 import uasyncio as asyncio # pyright: ignore[reportMissingImports]
-from utils import generate_default_reader_id, connect_wifi
+from utils import generate_default_reader_id, connect_wifi, load_credentials
 from buzzer import BuzzerController
 import ujson
 from led import LedController
@@ -15,8 +15,7 @@ CONFIG_FILE = "config.json"
 DEFAULT_CONFIG = {
     # All your config keys remain here...
     "CONNECTION_CHECK_INTERVAL": 5,"CONNECTION_RETRIES": 5,"MQTT_RECONNECT_DELAY": 5,"NFC_READ_TIMEOUT": 300,"MAX_QUEUE_SIZE": 50, "MQTT_DELAY": 500,
-    "WIFI_SSID": "prohidna","WIFI_PASSWORD": "admin1234",
-    "BROKER_ADDR": '192.168.232.73',"READER_ID_AFFIX": generate_default_reader_id(),
+    "READER_ID_AFFIX": generate_default_reader_id(),
     "BUZZER_GPIO": 4,"SPI_SCK_GPIO": 18,"SPI_MOSI_GPIO": 23,"SPI_MISO_GPIO": 19,"NFC_CS_GPIO": 5,"LED_GPIO": 32,
     "APROVAL_MELODY": [[659, 150], [698, 150], [784, 150], [880, 300]],
     "DENIAL_MELODY": [[523, 200], [440, 200], [349, 300]],
@@ -159,12 +158,14 @@ async def read_nfc():
             try:
                 uid = pn532.read_passive_target(timeout=config["NFC_READ_TIMEOUT"]) # type: ignore
                 if uid is not None:
+                    code = nfc.read_card_code_from_block4(pn532, uid)
+                    if code is not None: log(f"Card code (from block 4): {code}")
                     uid_str_hex = '-'.join(['{:02X}'.format(i) for i in uid])
                     uid_str_dec = '-'.join([str(i) for i in uid])
                     if uid != last_uid:
                         last_uid = uid
                         log(f"Card Found! UID (hexadecimal): {uid_str_hex}, UID (decimal): {uid_str_dec}")
-                        if uid_str_dec in whitelist:
+                        if uid_str_dec in whitelist or code in whitelist:
                             log("Card is whitelisted. Access granted.")
                             led_controller.set_annimation('success', 0.7) # type: ignore
                             asyncio.create_task(buzzer.play_approval())  # type: ignore # Play approval melody
@@ -200,9 +201,9 @@ async def main():
     log("Loading software version: " + SOFTWARE)
     load_config(); apply_config()
     if not initialize_hardware(): return log("Hardware init failed. Halting.")
-
-    log(f"Connecting to WiFi: {config['WIFI_SSID']}")
-    connect_wifi(config['WIFI_SSID'], config['WIFI_PASSWORD'])
+    credits = load_credentials()
+    log(f"Connecting to WiFi: {credits['WIFI_SSID']}")
+    connect_wifi(credits['WIFI_SSID'], credits['WIFI_PASSWORD'])
     buzzer.off() # type: ignore
 
     # Initialize and connect the MQTT Manager

@@ -1,4 +1,4 @@
-# @Author: carlosgilgonzalez
+# @Author: carlosgilgonzalez MODIFIED BY PROHIDA!!
 # @Date:   2019-10-15T16:13:47+01:00
 # @Last modified by:   carlosgilgonzalez
 # @Last modified time: 2019-10-15T16:56:27+01:00
@@ -373,3 +373,43 @@ class PN532:
             return None
         # Return first 4 bytes since 16 bytes are always returned.
         return response[1:]
+    
+def read_card_code_from_block4(pn532, uid, key_a=b'\xFF\xFF\xFF\xFF\xFF\xFF', block=4):
+    """
+    Replicates the C++ read_card() behavior:
+      - AUTH_A on block 4 with FF FF FF FF FF FF
+      - read 16 bytes from block 4
+      - return first 8 bytes packed into a 64-bit big-endian int
+    Returns:
+      int code  (matching your DB)
+      or None   (if no auth/read)
+    """
+    # PN532 MIFARE Classic auth wants a 4-byte UID slice. For 7-byte UIDs, use the last 4 bytes.
+    if len(uid) >= 4:
+        uid4 = uid[-4:]
+    else:
+        return None
+
+    # Authenticate block 4 with Key A
+    # InDataExchange params: [Tg=0x01, MIFARE_CMD_AUTH_A, block, key[6], uid[4]]
+    params = bytearray(3 + 6 + 4)
+    params[0] = 0x01
+    params[1] = MIFARE_CMD_AUTH_A
+    params[2] = block & 0xFF
+    params[3:9] = key_a
+    params[9:13] = uid4
+
+    resp = pn532.call_function(_COMMAND_INDATAEXCHANGE, params=params, response_length=1)
+    if not resp or resp[0] != 0x00:
+        return None  # auth failed
+
+    data = pn532.mifare_classic_read_block(block)
+    if not data or len(data) < 16:
+        return None
+
+    # Pack data[0..7] exactly like your C++ loop: big-endian accumulation.
+    code = 0
+    for i in range(8):
+        code = (code << 8) | (data[i] & 0xFF)
+
+    return code

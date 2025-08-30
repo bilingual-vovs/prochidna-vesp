@@ -21,12 +21,11 @@ async def main():
     credits = load_credentials()
     log(f"Device ID: {credits['CLIENT_ID']}")
     log(f"Reader ID: {credits.get('READER_ID', generate_default_reader_id())}")
-    log(credits['WIFI_SSID'] + " : " + credits['WIFI_PASSWORD'])
     connect_wifi(credits['WIFI_SSID'], credits['WIFI_PASSWORD'])
 
     load_config()
 
-    mqtt_manager = MqttManager(config, led_cb=lambda state, l: log(f"LED state changed to {state}:{l}"),
+    mqtt_manager = MqttManager(config, led_cb=lambda state: log(f"LED state changed to {state}"),
                             whitelist_cb=lambda action, uid: log(f"Whitelist action: {action} for UID {uid}"),
                             config_cb=lambda var, val: log(f"Config update: {var} = {val}"),
                             reset_cb=lambda: log("Reset triggered"))    
