@@ -7,6 +7,8 @@ from buzzer import BuzzerController
 import ujson
 from led import LedController
 from mqtt_manager import MqttManager # <-- NEW IMPORT
+import ntptime
+import json
 
 SOFTWARE = 'v2.13.14-topic-naming'
 
@@ -159,7 +161,6 @@ async def read_nfc():
                 uid = pn532.read_passive_target(timeout=config["NFC_READ_TIMEOUT"]) # type: ignore
                 if uid is not None:
                     code = nfc.read_card_code_from_block4(pn532, uid)
-                    if code is not None: log(f"Card code (from block 4): {code}")
                     uid_str_hex = '-'.join(['{:02X}'.format(i) for i in uid])
                     uid_str_dec = '-'.join([str(i) for i in uid])
                     if uid != last_uid:
@@ -171,7 +172,12 @@ async def read_nfc():
                             asyncio.create_task(buzzer.play_approval())  # type: ignore # Play approval melody
                             async with queue_lock:
                                 if len(data_queue) < config["MAX_QUEUE_SIZE"]:
-                                    data_queue.append(uid_str_dec)
+                                    data = {
+                                        "uid_dec": uid_str_dec,
+                                        "code": code,
+                                        "timestamp": time.time()
+                                    }
+                                    data_queue.append(json.dumps(data))
                                 else:
                                     log("Data queue is full. Discarding data.")
                         else:
@@ -203,8 +209,15 @@ async def main():
     if not initialize_hardware(): return log("Hardware init failed. Halting.")
     credits = load_credentials()
     log(f"Connecting to WiFi: {credits['WIFI_SSID']}")
-    connect_wifi(credits['WIFI_SSID'], credits['WIFI_PASSWORD'])
+    r = connect_wifi(credits['WIFI_SSID'], credits['WIFI_PASSWORD'])
+    log("WiFi connected. IP: " + str(r))
     buzzer.off() # type: ignore
+
+    try:
+        ntptime.settime()
+        log("RTC synchronized with NTP. Current time: " + str(rtc.datetime()))
+    except Exception as e:
+        log(f"Error synchronizing with NTP: {e}") 
 
     # Initialize and connect the MQTT Manager
     mqtt_manager = MqttManager(
