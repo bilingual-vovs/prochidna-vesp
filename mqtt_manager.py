@@ -69,6 +69,7 @@ class MqttManager:
         self.log(f"Received message on topic: {topic}")
         if topic.startswith(self.topic_whitelist):
             action = topic.split('/')[-1]
+            self.log(f"Whitelist action: {action} with message: {msg}")
             if action == self.whitelist_add:
                 try:
                     new_entry = ujson.loads(msg)
@@ -119,11 +120,11 @@ class MqttManager:
 
                 #  ---------------- INDEV SOLUTION, NEEDS TO BE CHANGED WHEN PRODUCTION BROCKER WILL BE AWAIBLE ----------------
                 
-                self.mqttc.subscribe(self.topic_whitelist)
+                self.mqttc.subscribe(self.topic_whitelist + "#", qos=1)
                 self.log(f"Subscribed to whitelist topic: {self.topic_whitelist}")
-                self.mqttc.subscribe(f"{self.topic_config_base}/#")
+                self.mqttc.subscribe(f"{self.topic_config_base}/#", qos=1)
                 self.log(f"Subscribed to config topic: {self.topic_config_base}/#")
-                self.mqttc.subscribe(self.topic_reset)
+                self.mqttc.subscribe(self.topic_reset, qos=1)
                 self.log(f"Subscribed to reset topic: {self.topic_reset}")
                 
                 self.mqttc.set_last_will(topic=self.topic_offline, msg=self.client_id, retain=True, qos=1)
