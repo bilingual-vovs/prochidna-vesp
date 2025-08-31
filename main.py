@@ -234,7 +234,7 @@ async def main():
     if not initialize_hardware(): return log("Hardware init failed. Halting.")
     credits = load_credentials()
     
-    l = connect(config.get("PREFERED_NETWORK", "ethernet"), config, credits)
+    l = connect(config.get("PREFERED_NETWORK", "ethernet"), {}, credits)
     log(f"Network connected. IP info: {l}")
     buzzer.off() # type: ignore
 

@@ -39,6 +39,8 @@ def connect_ethernet(mdc = 23, mdio = 18, phy_type = None, phy_addr = 0):
         phy_type = network.PHY_LAN8720
     else: 
         phy_type = network[phy_type]
+
+    phy_type = network.PHY_LAN8720
     
     lan = network.LAN(mdc=Pin(mdc), mdio=Pin(mdio), phy_type=phy_type, phy_addr=phy_addr)
     lan.active(True)
