@@ -165,15 +165,7 @@ async def check_pn532_connection():
                 log(f"PN532 connection lost: {e}")
                 mqtt_manager.register_error(f"PN532 connection lost: {e}") # type: ignore
                 connected_nfc = False
-                
 
-async def indicate(i):
-    if i:
-        led_controller.set_annimation('success', 0.7) # type: ignore
-        buzzer.play_approval()  # type: ignore # Play approval melody
-    else:
-        led_controller.set_annimation('failure', 0.7)  # type: ignore # Short failure indication
-        buzzer.play_denial()  # type: ignore # Play denial melody
                 
 
 async def read_nfc():

@@ -51,6 +51,7 @@ class MqttManager:
         self.whitelist_remove = config["MANAGE_WHITELIST_REMOVE"]
         self.whitelist_Update = config["MANAGE_WHITELIST_UPDATE"]
 
+
     def log(self, message):
         print(f"[{time.time()}] MQTT: {message}")
 
@@ -66,25 +67,28 @@ class MqttManager:
         topic = topic_bytes.decode('utf-8')
         msg = msg_bytes.decode('utf-8')
         self.log(f"Received message on topic: {topic}")
-
-        if topic == self.topic_whitelist:
+        if topic.startswith(self.topic_whitelist):
             action = topic.split('/')[-1]
             if action == self.whitelist_add:
                 try:
                     new_entry = ujson.loads(msg)
-                    if isinstance(new_entry, dict) and "uid_dec" in new_entry:
-                        self.whitelist_callback("add", new_entry)
+                    if isinstance(new_entry, list):
+                        self.whitelist_callback("add", new_entry) # Support adding a list of UIDs
+                    elif isinstance(new_entry, str):
+                        self.whitelist_callback("add", [new_entry]) # Support adding a single UID string
                     else:
-                        self.log("Invalid whitelist entry format. Expected a dict with 'uid_dec'.")
+                        self.log("Invalid whitelist entry format. Expected a list of UIDs or a single UID string.")
                 except Exception as e:
                     self.log(f"Error processing whitelist addition: {e}")
             elif action == self.whitelist_remove:
                 try:
                     entry_to_remove = ujson.loads(msg)
-                    if isinstance(entry_to_remove, dict) and "uid_dec" in entry_to_remove:
-                        self.whitelist_callback("remove", entry_to_remove)
+                    if isinstance(entry_to_remove, list):
+                        self.whitelist_callback("remove", entry_to_remove) # Support removing a list of UIDs
+                    elif isinstance(entry_to_remove, str):
+                        self.whitelist_callback("remove", [entry_to_remove]) # Support removing a single UID
                     else:
-                        self.log("Invalid whitelist entry format. Expected a dict with 'uid_dec'.")
+                        self.log("Invalid whitelist entry format. Expected a list of UIDs or a single UID string.")
                 except Exception as e:
                     self.log(f"Error processing whitelist removal: {e}")
             elif action == self.whitelist_Update:
@@ -111,13 +115,16 @@ class MqttManager:
             self.led_callback('waiting', 0)  # Indicate connection attempt
             try:
                 self.log(f"Attempting to connect to broker at {self.broker}...")
-                self.mqttc.connect(clean_session=False)
+                self.mqttc.connect(clean_session=True)
 
                 #  ---------------- INDEV SOLUTION, NEEDS TO BE CHANGED WHEN PRODUCTION BROCKER WILL BE AWAIBLE ----------------
                 
                 self.mqttc.subscribe(self.topic_whitelist)
+                self.log(f"Subscribed to whitelist topic: {self.topic_whitelist}")
                 self.mqttc.subscribe(f"{self.topic_config_base}/#")
+                self.log(f"Subscribed to config topic: {self.topic_config_base}/#")
                 self.mqttc.subscribe(self.topic_reset)
+                self.log(f"Subscribed to reset topic: {self.topic_reset}")
                 
                 self.mqttc.set_last_will(topic=self.topic_offline, msg=self.client_id, retain=True, qos=1)
                 self.mqttc.publish(self.topic_online, self.client_id, retain=True, qos=1)
