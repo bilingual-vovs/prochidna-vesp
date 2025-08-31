@@ -2,7 +2,7 @@ import NFC_PN532 as nfc # type: ignore
 from machine import Pin, SPI, reset, RTC, freq # type: ignore
 import time
 import uasyncio as asyncio # pyright: ignore[reportMissingImports]
-from utils import generate_default_reader_id, connect_wifi, load_credentials
+from utils import generate_default_reader_id, connect, load_credentials
 from buzzer import BuzzerController
 import ujson
 from led import LedController
@@ -37,7 +37,16 @@ DEFAULT_CONFIG = {
     "MANAGE_WHITELIST_REMOVE": "remove",
     "MANAGE_WHITELIST_UPDATE": "update",
     "MANAGE_CONFIG": "configure",
-    "MANAGE_RESET": "reset"
+    "MANAGE_RESET": "reset",
+
+    "ETH_MDC": 23,
+    "ETH_MDIO": 18,
+    "ETH_TYPE": "LAN8720",
+    "ETH_CLK_MODE": "GPIO0_IN",
+    "ETH_POWER": 12,
+    "ETH_PHY_ADDR": 1,
+
+    "PREFERED_NETWORK": "ethernet"  # Options: "wifi", "ethernet"
 }
 
 # --- Global State & Hardware Objects (Simplified) ---
@@ -224,9 +233,9 @@ async def main():
     load_config(); apply_config()
     if not initialize_hardware(): return log("Hardware init failed. Halting.")
     credits = load_credentials()
-    log(f"Connecting to WiFi: {credits['WIFI_SSID']}")
-    r = connect_wifi(credits['WIFI_SSID'], credits['WIFI_PASSWORD'])
-    log("WiFi connected. IP: " + str(r))
+    
+    l = connect(config.get("PREFERED_NETWORK", "ethernet"), config, credits)
+    log(f"Network connected. IP info: {l}")
     buzzer.off() # type: ignore
 
     try:

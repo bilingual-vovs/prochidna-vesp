@@ -16,8 +16,6 @@ try:
         mdio=Pin(18), 
         phy_type=network.PHY_LAN8720, 
         phy_addr=0,
-        # ----- ОСЬ КЛЮЧОВИЙ ПАРАМЕТР! -----
-        clock_mode=network.ETH_CLOCK_GPIO0_IN 
     )
 
     lan.active(True)
