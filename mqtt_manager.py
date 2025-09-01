@@ -27,7 +27,7 @@ class MqttManager:
 
         self.client_id = self._credentials['CLIENT_ID']
         self.broker = self._credentials['BROKER_ADDR']
-        self.port = self._credentials.get('BROKER_PORT', 1883)
+        self.port = self._credentials['BROKER_PORT']
         self.mqttc = MQTTClient(self.client_id, 
                                 self.broker, 
                                 user=self._credentials['CLIENT_NAME'],
