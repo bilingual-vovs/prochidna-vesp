@@ -191,7 +191,7 @@ async def read_nfc():
                     if uid != last_uid:
                         last_uid = uid
                         log(f"Card Found! UID (hexadecimal): {uid_str_hex}, UID (decimal): {uid_str_dec}")
-                        if uid_str_dec in whitelist or code in whitelist:
+                        if uid_str_dec or code:
                             log("Card is whitelisted. Access granted.")
                             led_controller.set_annimation('success', 0.7) # type: ignore
                             asyncio.create_task(buzzer.play_approval())  # type: ignore # Play approval melody

@@ -33,7 +33,7 @@ class MqttManager:
                                 user=self._credentials['CLIENT_NAME'],
                                 password=self._credentials['MQTT_PASSWORD'],
                                 port=self.port,
-                                keepalive=120)
+                                keepalive=12000)
         self.mqttc.set_callback(self._callback)
         self.is_connected = False
         
@@ -120,15 +120,15 @@ class MqttManager:
 
                 #  ---------------- INDEV SOLUTION, NEEDS TO BE CHANGED WHEN PRODUCTION BROCKER WILL BE AWAIBLE ----------------
                 
-                self.mqttc.subscribe(self.topic_whitelist + "#", qos=1)
+                self.mqttc.subscribe(self.topic_whitelist + "#", qos=0)
                 self.log(f"Subscribed to whitelist topic: {self.topic_whitelist}")
-                self.mqttc.subscribe(f"{self.topic_config_base}/#", qos=1)
+                self.mqttc.subscribe(f"{self.topic_config_base}/#", qos=0)
                 self.log(f"Subscribed to config topic: {self.topic_config_base}/#")
-                self.mqttc.subscribe(self.topic_reset, qos=1)
+                self.mqttc.subscribe(self.topic_reset, qos=0)
                 self.log(f"Subscribed to reset topic: {self.topic_reset}")
                 
-                self.mqttc.set_last_will(topic=self.topic_offline, msg=self.client_id, retain=True, qos=1)
-                self.mqttc.publish(self.topic_online, self.client_id, retain=True, qos=1)
+                self.mqttc.set_last_will(topic=self.topic_offline, msg=self.client_id, retain=True, qos=0)
+                self.mqttc.publish(self.topic_online, self.client_id, retain=True, qos=0)
                 
                 self.log("Successfully connected to MQTT Broker.")
                 self.is_connected = True
@@ -177,7 +177,7 @@ class MqttManager:
         if self.is_connected:
             self.log("Disconnecting from MQTT.")
             try:
-                self.mqttc.publish(self.topic_offline, self.client_id, retain=True, qos=1)
+                self.mqttc.publish(self.topic_offline, self.client_id, retain=True, qos=0)
                 self.mqttc.disconnect()
             except Exception as e:
                 self.log(f"Error during disconnect: {e}")
