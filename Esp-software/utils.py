@@ -7,29 +7,55 @@ def generate_default_reader_id():
     return 'unidentified_reader/' + mac_str
 
 DEFAULT_CONFIG = {
-    # All your config keys remain here...
-    "CONNECTION_CHECK_INTERVAL": 5,"CONNECTION_RETRIES": 5,"MQTT_RECONNECT_DELAY": 5,"NFC_READ_TIMEOUT": 300,"MAX_QUEUE_SIZE": 50, "MQTT_DELAY": 500,
-    "READER_ID_AFFIX": generate_default_reader_id(),
-    "BUZZER_GPIO": 4,"SPI_SCK_GPIO": 18,"SPI_MOSI_GPIO": 23,"SPI_MISO_GPIO": 19,"NFC_CS_GPIO": 5,"LED_GPIO": 32,
-    "APROVAL_MELODY": [[659, 150], [698, 150], [784, 150], [880, 300]],
-    "DENIAL_MELODY": [[523, 200], [440, 200], [349, 300]],
-    "WHITELIST": [],"LED_DIODS_AM": 24,'LED_COLOR_SUCCESS': [0, 255, 0],'LED_COLOR_FAILURE': [255, 0, 0],'LED_COLOR_LOADING': [0, 100, 200],'LED_COLOR_WAITING': [0, 50, 100],'LED_COLOR_OFF': [0, 0, 0],'LED_LOADING_POS': 0,'LED_WAITING_PULSE_ANGLE': 0,'LED_WAITING_PULSE_SPEED': 0.04,
-    
-    "MQTT_NAMING_TEMPLATE_SUBSCRIBE": "device/$READER_ID_AFFIX/manage/#",
-    "MQTT_NAMING_TEMPLATE_PUBLISH": "device/$READER_ID_AFFIX/events/#",
-    
-    "READ_EVENT": "read",
-    "ERROR_EVENT": "error",
-    "ONLINE_EVENT": "online",
-    "OFFLINE_EVENT": "offline",
-    "TELEMETRY_EVENT": "telemetry",
+  "LED_LOADING_POS": 0,
+  "WIFI_SSID": "s5",
+  "MQTT_NAMING_TEMPLATE_SUBSCRIBE": "device/$READER_ID_AFFIX/manage/#",
+  "MQTT_NAMING_TEMPLATE_PUBLISH": "device/$READER_ID_AFFIX/events/#",
+  "LED_COLOR_OFF": [0, 0, 0],
+  "MANAGE_WHITELIST": "whitelist/",
+  "MANAGE_WHITELIST_ADD": "add",
+  "MANAGE_WHITELIST_REMOVE": "remove",
+  "MANAGE_RESET": "reset",
+  "MAX_QUEUE_SIZE": 50,
+  "ERROR_EVENT": "error",
+  "LED_COLOR_SUCCESS": [0, 255, 0],
+  "MQTT_DELAY": 50,
+  "READ_EVENT": "read",
+  "ONLINE_EVENT": "online",
+  "LED_COLOR_LOADING": [255, 156, 256],
+  "DENIAL_MELODY": [
+    [430, 100],
+    [320, 100]
+  ],
+  "MANAGE_CONFIG": "configure",
+  "LED_WAITING_PULSE_SPEED": 0.1,
+  "CLIENT_NAME": "blue",
+  "BROKER_ADDR": "192.168.31.70",
+  "LED_WAITING_PULSE_ANGLE": 0,
+  "CONNECTION_CHECK_INTERVAL": 5,
+  "WIFI_PASSWORD": "opelvectra",
+  "CONNECTION_RETRIES": 15,
+  "OFFLINE_EVENT": "offline",
+  "MQTT_RECONNECT_DELAY": 10,
+  "NFC_READ_TIMEOUT": 9,
+  "LED_DIODS_AM": 24,
+  "APROVAL_MELODY": [
+    [700, 100],
+    [880, 100]
+  ],
+  "READER_ID_AFFIX": "reader_real",
+  "LED_COLOR_WAITING": [0, 50, 100],
+  "TELEMETRY_EVENT": "telemetry",
+  "LED_COLOR_FAILURE": [255, 0, 0],
+  "WHITELIST": ["86-225-141-90"],
 
-    "MANAGE_WHITELIST": "whitelist/#",
-    "MANAGE_WHITELIST_ADD": "add",
-    "MANAGE_WHITELIST_REMOVE": "remove",
+  "BUZZER_GPIO": 32,
+    "SPI_SCK_GPIO": 14,
+    "SPI_MOSI_GPIO": 16,
+    "SPI_MISO_GPIO": 15,
+    "NFC_CS_GPIO": 13,
+    "LED_GPIO": 3,  
     "MANAGE_WHITELIST_UPDATE": "update",
-    "MANAGE_CONFIG": "configure",
-    "MANAGE_RESET": "reset",
 
     "ETH_MDC": 23,
     "ETH_MDIO": 18,
@@ -38,8 +64,10 @@ DEFAULT_CONFIG = {
     "ETH_POWER": 12,
     "ETH_PHY_ADDR": 1,
 
-    "PREFERED_NETWORK": "ethernet"  # Options: "wifi", "ethernet"
+    "PREFERED_NETWORK": "ethernet"  
 }
+
+
 
 def connect_wifi(SSID='prohidna', password='12345678', log=print):
     import network # type: ignore

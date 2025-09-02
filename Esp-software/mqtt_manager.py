@@ -51,6 +51,8 @@ class MqttManager:
         self.whitelist_remove = config["MANAGE_WHITELIST_REMOVE"]
         self.whitelist_Update = config["MANAGE_WHITELIST_UPDATE"]
 
+        self.last_mqtt_connection = float('inf')
+
 
     def log(self, message):
         print(f"[{time.time()}] MQTT: {message}")
@@ -139,6 +141,7 @@ class MqttManager:
                 await uasyncio.sleep(self.config["MQTT_RECONNECT_DELAY"])
         
         self.log("Failed to connect after multiple retries.")
+        self.reset_callback()
         return False
 
     async def message_loop(self):
@@ -147,6 +150,7 @@ class MqttManager:
             try:
                 if self.is_connected:
                     self.mqttc.check_msg()
+                    self.last_mqtt_connection = time.time
                 else:
                     self.log("Connection lost. Attempting to reconnect...")
                     await self.connect()

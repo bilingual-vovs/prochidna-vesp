@@ -2,7 +2,7 @@ import NFC_PN532 as nfc # type: ignore
 from machine import Pin, SPI, reset, RTC, freq # type: ignore
 import time
 import uasyncio as asyncio # pyright: ignore[reportMissingImports]
-from utils import generate_default_reader_id, connect, load_credentials
+from utils import connect, load_credentials, DEFAULT_CONFIG
 from buzzer import BuzzerController
 import ujson
 from led import LedController
@@ -14,40 +14,6 @@ SOFTWARE = 'v2.15.2-whitelist-operations'
 
 # --- Configuration (Unchanged) ---
 CONFIG_FILE = "config.json"
-DEFAULT_CONFIG = {
-    # All your config keys remain here...
-    "CONNECTION_CHECK_INTERVAL": 5,"CONNECTION_RETRIES": 5,"MQTT_RECONNECT_DELAY": 5,"NFC_READ_TIMEOUT": 300,"MAX_QUEUE_SIZE": 50, "MQTT_DELAY": 500,
-    "READER_ID_AFFIX": generate_default_reader_id(),
-    "BUZZER_GPIO": 4,"SPI_SCK_GPIO": 18,"SPI_MOSI_GPIO": 23,"SPI_MISO_GPIO": 19,"NFC_CS_GPIO": 5,"LED_GPIO": 32,
-    "APROVAL_MELODY": [[659, 150], [698, 150], [784, 150], [880, 300]],
-    "DENIAL_MELODY": [[523, 200], [440, 200], [349, 300]],
-    "WHITELIST": [],"LED_DIODS_AM": 24,'LED_COLOR_SUCCESS': [0, 255, 0],'LED_COLOR_FAILURE': [255, 0, 0],'LED_COLOR_LOADING': [0, 100, 200],'LED_COLOR_WAITING': [0, 50, 100],'LED_COLOR_OFF': [0, 0, 0],'LED_LOADING_POS': 0,'LED_WAITING_PULSE_ANGLE': 0,'LED_WAITING_PULSE_SPEED': 0.04,
-    
-    "MQTT_NAMING_TEMPLATE_SUBSCRIBE": "device/$READER_ID_AFFIX/manage/#",
-    "MQTT_NAMING_TEMPLATE_PUBLISH": "device/$READER_ID_AFFIX/events/#",
-    
-    "READ_EVENT": "read",
-    "ERROR_EVENT": "error",
-    "ONLINE_EVENT": "online",
-    "OFFLINE_EVENT": "offline",
-    "TELEMETRY_EVENT": "telemetry",
-
-    "MANAGE_WHITELIST": "whitelist/#",
-    "MANAGE_WHITELIST_ADD": "add",
-    "MANAGE_WHITELIST_REMOVE": "remove",
-    "MANAGE_WHITELIST_UPDATE": "update",
-    "MANAGE_CONFIG": "configure",
-    "MANAGE_RESET": "reset",
-
-    "ETH_MDC": 23,
-    "ETH_MDIO": 18,
-    "ETH_TYPE": "LAN8720",
-    "ETH_CLK_MODE": "GPIO0_IN",
-    "ETH_POWER": 12,
-    "ETH_PHY_ADDR": 1,
-
-    "PREFERED_NETWORK": "ethernet"  # Options: "wifi", "ethernet"
-}
 
 # --- Global State & Hardware Objects (Simplified) ---
 pn532 = None; connected_nfc = False; last_uid = None
@@ -57,6 +23,12 @@ spi_dev = None; cs = None; buzzer = None; led_controller = None; mqtt_manager = 
 
 # --- Helper Functions ---
 def log(message): print(f"[{time.time()}] {message}")
+
+def release():
+    if pn532: log("Releasing NFC resources.")
+    if mqtt_manager: mqtt_manager.disconnect()
+    if led_controller: led_controller.release()
+    log("Done.")
 
 def load_config():
     # ... (Unchanged)
@@ -247,7 +219,7 @@ async def main():
     # Initialize and connect the MQTT Manager
     mqtt_manager = MqttManager(
         config=config, led_cb=led_controller.set_annimation, # Assumes LedController has such a method # type: ignore
-        whitelist_cb=handle_whitelist_update, config_cb=handle_config_update, reset_cb=reset
+        whitelist_cb=handle_whitelist_update, config_cb=handle_config_update, reset_cb=release
     )
     if not await mqtt_manager.connect():
         log("Could not connect to MQTT broker. Resetting."); reset()
@@ -271,7 +243,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         log("Exiting...")
     finally:
-        if pn532: log("Releasing NFC resources.")
-        if mqtt_manager: mqtt_manager.disconnect()
-        if led_controller: led_controller.release()
-        log("Done.")
+        release()

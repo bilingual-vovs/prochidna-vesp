@@ -42,11 +42,11 @@
   "WHITELIST": ["86-225-141-90"],
 
   "BUZZER_GPIO": 32,
-    "SPI_SCK_GPIO": 16,
-    "SPI_MOSI_GPIO": 14,
+    "SPI_SCK_GPIO": 14,
+    "SPI_MOSI_GPIO": 16,
     "SPI_MISO_GPIO": 15,
     "NFC_CS_GPIO": 13,
-    "LED_GPIO": 2,  
+    "LED_GPIO": 3,  
     "MANAGE_WHITELIST_UPDATE": "update",
 
     "ETH_MDC": 23,
