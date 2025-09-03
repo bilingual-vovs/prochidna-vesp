@@ -8,7 +8,7 @@ import re
 from utils import load_credentials
 
 class MqttManager:
-    def __init__(self, config, led_cb, whitelist_cb, config_cb, reset_cb):
+    def __init__(self, config, led_cb, whitelist_cb, config_cb, reset_cb, db_controller):
         """
         Initializes the MQTT Manager.
         :param config: The main application's configuration dictionary.
@@ -53,6 +53,11 @@ class MqttManager:
 
         self.last_mqtt_connection = float('inf')
 
+        self.publishing = set()
+        self.published = set()
+        self.db = db_controller
+
+        self.running = False
 
     def log(self, message):
         print(f"[{time.time()}] MQTT: {message}")
@@ -146,7 +151,7 @@ class MqttManager:
 
     async def message_loop(self):
         """Asynchronous task to check for messages and handle reconnection."""
-        while True:
+        while self.running:
             try:
                 if self.is_connected:
                     self.mqttc.check_msg()
@@ -158,6 +163,22 @@ class MqttManager:
             except Exception as e:
                 self.log(f"Error in message_loop: {e}")
                 self.is_connected = False # Trigger reconnect on next iteration
+
+    async def publishing_loop(self):
+        while self.running:
+            if self.is_connected:
+                if self.published:
+                    self.db.remove_record(self.published.pop())
+                
+                try:
+                    read = self.db.get_record()
+                    self.publishing.add(read["time"])
+                    if self.register_read(read["dec"], read["fourth"], read['time']): 
+                        try:
+                            self.db.remove_record(read["time"])
+                        
+                
+                
 
     def publish(self, topic, message):
         if not self.is_connected:
@@ -171,8 +192,23 @@ class MqttManager:
             self.is_connected = False
             return False
         
-    def register_read(self, data):
-        self.publish(self.topic_read, data)
+    def register_read(self, dec, fourth, time):
+        self.publishing.add(time)
+        if self.publish(self.topic_read, {
+                "dec": dec,
+                "fourth": fourth,
+                "time": time
+            }): 
+            self.publishing.remove(time)
+            try: 
+                if self.db.remove_record(time): return True
+                else: self.published.add(time)
+            except Exception as e:
+                self.log(f"Error while publishing: {e}")
+                self.published.add(time)
+            return True
+        return False
+        
 
     def register_error(self, error_message):
         self.publish(self.topic_error, error_message)

@@ -8,7 +8,7 @@ class PN532Controller:
     Controller class for handling PN532 NFC reader operations.
     Manages NFC reading, status indication, and database interactions.
     """
-    def __init__(self, config, led_controller, db_controller, mqtt_callback):
+    def __init__(self, config, led_controller, db_controller, mqtt_manager):
         """
         Initialize the PN532 controller
         :param config: Application configuration dictionary
@@ -19,7 +19,7 @@ class PN532Controller:
         self.config = config
         self.led_controller = led_controller
         self.db_controller = db_controller
-        self.mqtt_callback = mqtt_callback
+        self.mqtt_manager = mqtt_manager
         
         # Initialize hardware
         self.spi_dev = SPI(1, 
@@ -108,6 +108,11 @@ class PN532Controller:
                             # Record the read in database
                             timestamp = time.time()
                             self.db_controller.add_record(
+                                dec=int(uid_string, 16),  # decimal representation
+                                fourth=int(uid_string[-8:], 16) if len(uid_string) >= 8 else 0,  # last 4 bytes
+                                time=timestamp
+                            )
+                            self.mqtt_manager.register_read(
                                 dec=int(uid_string, 16),  # decimal representation
                                 fourth=int(uid_string[-8:], 16) if len(uid_string) >= 8 else 0,  # last 4 bytes
                                 time=timestamp

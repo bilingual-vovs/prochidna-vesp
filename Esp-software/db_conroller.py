@@ -2,7 +2,7 @@ import ujson as json
 import os
 
 class DatabaseController:
-    def __init__(self, db_path: str = "db.json", log: function = print):
+    def __init__(self, db_path: str = "db.json", log = print):
         self.db_path = db_path
         self.logF = log
         try:
@@ -80,6 +80,7 @@ class DatabaseController:
             records = [r for r in records if r["time"] != time]
             self._write_db(records)
             self.log(f"Removed record {time}")
-            return len(records) < initial_len
+            return True
         except Exception as e:
             self.log(f"Failed to remove record: {str(e)}")
+            return False
