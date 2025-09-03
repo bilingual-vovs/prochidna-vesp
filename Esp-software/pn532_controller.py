@@ -8,7 +8,7 @@ class PN532Controller:
     Controller class for handling PN532 NFC reader operations.
     Manages NFC reading, status indication, and database interactions.
     """
-    def __init__(self, config, led_controller, db_controller, mqtt_manager):
+    def __init__(self, config, led_controller, db_controller, mqtt_reg):
         """
         Initialize the PN532 controller
         :param config: Application configuration dictionary
@@ -19,7 +19,7 @@ class PN532Controller:
         self.config = config
         self.led_controller = led_controller
         self.db_controller = db_controller
-        self.mqtt_manager = mqtt_manager
+        self.mqtt_reg = mqtt_reg
         
         # Initialize hardware
         self.spi_dev = SPI(1, 
@@ -27,6 +27,9 @@ class PN532Controller:
                           sck=Pin(config['SPI_SCK_GPIO']),
                           mosi=Pin(config['SPI_MOSI_GPIO']),
                           miso=Pin(config['SPI_MISO_GPIO']))
+        print(Pin(config['SPI_SCK_GPIO']),
+                          Pin(config['SPI_MOSI_GPIO']),
+                          Pin(config['SPI_MISO_GPIO']))
         self.cs = Pin(config['NFC_CS_GPIO'], Pin.OUT, value=1)
         
         # Initialize state
@@ -48,6 +51,7 @@ class PN532Controller:
         """
         if self.pn532 is None:
             self.pn532 = nfc.PN532(self.spi_dev, self.cs)
+            print(self.cs)
         
         retries = 0
         while retries < self.config["CONNECTION_RETRIES"]:
@@ -63,7 +67,6 @@ class PN532Controller:
                 self.log(f"Error connecting to PN532: {e}. Retrying...")
                 retries += 1
                 await asyncio.sleep(1)
-        
         self.log("Failed to connect to PN532 after multiple retries")
         # ADD MQTT ERROR LOGGING
         self.connected = False
@@ -107,14 +110,14 @@ class PN532Controller:
                             
                             # Record the read in database
                             timestamp = time.time()
-                            self.db_controller.add_record(
-                                dec=int(uid_string, 16),  # decimal representation
-                                fourth=int(uid_string[-8:], 16) if len(uid_string) >= 8 else 0,  # last 4 bytes
+                            await self.db_controller.add_record(
+                                dec=uid_string,  # decimal representation
+                                fourth=fourth,  # last 4 bytes
                                 time=timestamp
                             )
-                            self.mqtt_manager.register_read(
-                                dec=int(uid_string, 16),  # decimal representation
-                                fourth=int(uid_string[-8:], 16) if len(uid_string) >= 8 else 0,  # last 4 bytes
+                            self.mqtt_reg(
+                                dec=uid_string,  # decimal representation
+                                fourth=fourth, # last 4 bytes
                                 time=timestamp
                             )
                             

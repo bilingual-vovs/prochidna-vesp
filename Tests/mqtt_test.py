@@ -1,4 +1,10 @@
-{
+from mqtt_manager import MqttManager
+import uasyncio as asyncio
+from db_conroller import DatabaseController #type: ignore 
+
+db = DatabaseController()
+
+config = {
   "LED_LOADING_POS": 0,
   "WIFI_SSID": "s5",
   "MQTT_NAMING_TEMPLATE_SUBSCRIBE": "device/$READER_ID_AFFIX/manage/#",
@@ -41,12 +47,12 @@
   "LED_COLOR_FAILURE": [255, 0, 0],
   "WHITELIST": ["86-225-141-90"],
 
-    "BUZZER_GPIO": 4,
-    "SPI_SCK_GPIO": 16,
-    "SPI_MOSI_GPIO": 14,
+  "BUZZER_GPIO": 32,
+    "SPI_SCK_GPIO": 14,
+    "SPI_MOSI_GPIO": 16,
     "SPI_MISO_GPIO": 15,
     "NFC_CS_GPIO": 13,
-    "LED_GPIO": 2,
+    "LED_GPIO": 3,  
     "MANAGE_WHITELIST_UPDATE": "update",
 
     "ETH_MDC": 23,
@@ -56,6 +62,8 @@
     "ETH_POWER": 12,
     "ETH_PHY_ADDR": 1,
 
-    "PREFERED_NETWORK": "wifi"  
+    "PREFERED_NETWORK": "ethernet"  
 }
+
+mqtt = MqttManager(config, print, print, db)
 

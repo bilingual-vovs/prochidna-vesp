@@ -49,12 +49,12 @@ DEFAULT_CONFIG = {
   "LED_COLOR_FAILURE": [255, 0, 0],
   "WHITELIST": ["86-225-141-90"],
 
-  "BUZZER_GPIO": 32,
-    "SPI_SCK_GPIO": 14,
-    "SPI_MOSI_GPIO": 16,
+    "BUZZER_GPIO": 35,
+    "SPI_SCK_GPIO": 16,
+    "SPI_MOSI_GPIO": 14,
     "SPI_MISO_GPIO": 15,
     "NFC_CS_GPIO": 13,
-    "LED_GPIO": 3,  
+    "LED_GPIO": 34,
     "MANAGE_WHITELIST_UPDATE": "update",
 
     "ETH_MDC": 23,
@@ -64,8 +64,10 @@ DEFAULT_CONFIG = {
     "ETH_POWER": 12,
     "ETH_PHY_ADDR": 1,
 
-    "PREFERED_NETWORK": "ethernet"  
+    "PREFERED_NETWORK": "wifi"  
 }
+
+
 
 
 

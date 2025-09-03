@@ -11,7 +11,7 @@ from db_conroller import DatabaseController
 import ntptime
 import json
 
-SOFTWARE = 'v2.15.2-whitelist-operations'
+SOFTWARE = 'v3.1.6-refactor'
 
 # --- Configuration (Unchanged) ---
 CONFIG_FILE = "config.json"
@@ -24,6 +24,8 @@ db_controller = None; pn532_controller = None
 
 # --- Helper Functions ---
 def log(message): print(f"[{time.time()}] {message}")
+
+db_controller = DatabaseController(log=log)
 
 def release():
     """Release all resources"""
@@ -53,32 +55,6 @@ def apply_config():
   global whitelist; whitelist = set(config.get("WHITELIST", []))
 
 # --- NEW: MQTT Callback Handlers ---
-def handle_whitelist_update(action, data):
-    """Callback function for the MqttManager to handle whitelist messages."""
-    if action == "add":
-        for entry in data:
-            if entry not in whitelist:
-                whitelist.add(entry)
-                log(f"Whitelist entry added: {entry}")
-            else:
-                log(f"Whitelist entry already exists: {entry}")
-    elif action == "remove":
-        for entry in data:  
-            if entry in whitelist:
-                whitelist.remove(entry)
-                log(f"Whitelist entry removed: {entry}")
-            else:
-                log(f"Whitelist entry not found: {entry}")  
-    elif action == "update":                            
-        if isinstance(data, list):
-            whitelist.clear()
-            whitelist.update(data)
-            log("Whitelist updated.")
-        else:
-            log("Invalid data for whitelist update. Expected a list.")
-    global config; config["WHITELIST"] = whitelist
-    apply_config(); save_config()
-    log("Whitelist update applied.")
 
 def handle_config_update(config_var, msg):
     """Callback function for the MqttManager to handle config messages."""
@@ -115,15 +91,13 @@ def initialize_hardware():
                                 denial_melody=config['DENIAL_MELODY'])
         
         # Initialize database controller
-        db_controller = DatabaseController(log=log)
         
         # Initialize PN532 controller with callbacks
-        def nfc_read_callback(data):
-            # Add to queue for MQTT publishing
-            if mqtt_manager and mqtt_manager.is_connected:
-                mqtt_manager.register_read(ujson.dumps(data))
+
+        def reg(dec: str, fourth: str, time):
+            mqtt_manager.register_read(dec, fourth, time)
         
-        pn532_controller = PN532Controller(config, led_controller, db_controller, nfc_read_callback)
+        pn532_controller = PN532Controller(config, led_controller, db_controller, reg)
         
         log("Hardware initialized.")
         return True
@@ -154,25 +128,20 @@ async def main():
     except Exception as e:
         log(f"Error synchronizing with NTP: {e}") 
 
-    # Initialize and connect the MQTT Manager
-    mqtt_manager = MqttManager(
-        config=config, 
-        led_cb=led_controller.set_annimation,
-        whitelist_cb=handle_whitelist_update, 
-        config_cb=handle_config_update, 
-        reset_cb=release
-    )
-    if not await mqtt_manager.connect():
-        log("Could not connect to MQTT broker. Resetting.")
-        reset()
-        
     # Start the PN532 controller
     if not await pn532_controller.run():
         log("Could not start PN532 controller. Resetting.")
         reset()
+
+    # Initialize and connect the MQTT Manager
+    mqtt_manager = MqttManager(
+        config=config, 
+        config_cb=handle_config_update, 
+        reset_cb=release,
+        db_controller =db_controller
+    )
+    await mqtt_manager.run()
         
-    # Start MQTT message loop
-    asyncio.create_task(mqtt_manager.message_loop())
 
     log("All systems running.")
     # The main loop is now only for keeping the script alive

@@ -1,6 +1,6 @@
 # mqtt_manager.py
 
-import uasyncio
+import uasyncio as asyncio
 from umqtt.simple import MQTTClient # type: ignore
 import ujson
 import time
@@ -8,18 +8,15 @@ import re
 from utils import load_credentials
 
 class MqttManager:
-    def __init__(self, config, led_cb, whitelist_cb, config_cb, reset_cb, db_controller):
+    def __init__(self, config, config_cb, reset_cb, db_controller):
         """
         Initializes the MQTT Manager.
         :param config: The main application's configuration dictionary.
-        :param led_state: The shared state dictionary for LED control.
-        :param whitelist_cb: Callback function to handle whitelist updates.
+
         :param config_cb: Callback function to handle configuration updates.
         :param reset_cb: Callback function to trigger a device reset.
         """
         self.config = config
-        self.led_callback = led_cb
-        self.whitelist_callback = whitelist_cb
         self.config_callback = config_cb
         self.reset_callback = reset_cb
 
@@ -119,8 +116,7 @@ class MqttManager:
 
     async def connect(self):
         retries = 0
-        while retries < self.config["CONNECTION_RETRIES"]:
-            self.led_callback('waiting', 0)  # Indicate connection attempt
+        while retries < self.config["CONNECTION_RETRIES"]:  # Indicate connection attempt
             try:
                 self.log(f"Attempting to connect to broker at {self.broker}...")
                 self.mqttc.connect(clean_session=True)
@@ -143,7 +139,7 @@ class MqttManager:
             except Exception as e:
                 self.log(f"Connection failed: {e}. Retrying...")
                 retries += 1
-                await uasyncio.sleep(self.config["MQTT_RECONNECT_DELAY"])
+                await asyncio.sleep(self.config["MQTT_RECONNECT_DELAY"])
         
         self.log("Failed to connect after multiple retries.")
         self.reset_callback()
@@ -159,32 +155,37 @@ class MqttManager:
                 else:
                     self.log("Connection lost. Attempting to reconnect...")
                     await self.connect()
-                await uasyncio.sleep_ms(self.config["MQTT_DELAY"])
+                await asyncio.sleep_ms(self.config["MQTT_DELAY"])
             except Exception as e:
                 self.log(f"Error in message_loop: {e}")
                 self.is_connected = False # Trigger reconnect on next iteration
 
     async def publishing_loop(self):
         while self.running:
+            await asyncio.sleep_ms(500)
             if self.is_connected:
                 if self.published:
-                    self.db.remove_record(self.published.pop())
+                    await self.db.remove_record(self.published.pop())
                 
                 try:
-                    read = self.db.get_record()
-                    self.publishing.add(read["time"])
+                    read = await self.db.get_record(self.publishing)
+                    if not read: continue
+                    self.publishing.add(read["dec"])
                     if self.register_read(read["dec"], read["fourth"], read['time']): 
+                        if read['dec'] in self.publishing: self.publishing.remove(read["dec"])
                         try:
-                            self.db.remove_record(read["time"])
+                            if not await self.db.remove_record(read["dec"]): self.published.add(read["dec"])
+                        except Exception as e:
+                            self.log(f'Error while: removing record: {e}')
+                except Exception as e:
+                    self.log(f"Error while getting record: {e}")
                         
-                
-                
 
     def publish(self, topic, message):
         if not self.is_connected:
             return False
         try:
-            self.mqttc.publish(topic, str(message))
+            self.mqttc.publish(topic, str(message), qos=1)
             self.log(f"Published to {topic}: {message}")
             return True
         except Exception as e:
@@ -193,19 +194,19 @@ class MqttManager:
             return False
         
     def register_read(self, dec, fourth, time):
-        self.publishing.add(time)
+        self.publishing.add(dec)
         if self.publish(self.topic_read, {
                 "dec": dec,
                 "fourth": fourth,
                 "time": time
             }): 
-            self.publishing.remove(time)
+            self.publishing.remove(dec)
             try: 
-                if self.db.remove_record(time): return True
-                else: self.published.add(time)
+                if self.db.remove_record(dec): return True
+                else: self.published.add(dec)
             except Exception as e:
                 self.log(f"Error while publishing: {e}")
-                self.published.add(time)
+                self.published.add(dec)
             return True
         return False
         
@@ -214,6 +215,7 @@ class MqttManager:
         self.publish(self.topic_error, error_message)
 
     def disconnect(self):
+        self.running = False
         if self.is_connected:
             self.log("Disconnecting from MQTT.")
             try:
@@ -222,3 +224,13 @@ class MqttManager:
             except Exception as e:
                 self.log(f"Error during disconnect: {e}")
         self.is_connected = False
+
+    async def run(self):
+        if not await self.connect():
+            self.log("MQTT connection is not established, continuing without it...")
+            return False
+        self.running = True
+        asyncio.create_task(self.message_loop())
+        asyncio.create_task(self.publishing_loop())
+        self.log("Mqtt ready")
+        
