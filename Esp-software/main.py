@@ -167,13 +167,17 @@ async def main():
         whitelist_cb=handle_whitelist_update,  # <-- ADD THIS WHITELIST CALLBACK
         db_controller=db_controller
     )
-    asyncio.create_task(mqtt_manager.run())
+    await mqtt_manager.run()
 
     log("All systems running.")
     # The main loop is now only for keeping the script alive
     while True:
-     
-           await asyncio.sleep(60)
+            try:
+                ntptime.settime()
+                log("RTC synchronized with NTP. Current time: " + str(rtc.datetime()))
+            except Exception as e:
+                log(f"Error synchronizing with NTP: {e}")
+            await asyncio.sleep(60)
 
 # --- Entry Point ---
 if __name__ == "__main__":

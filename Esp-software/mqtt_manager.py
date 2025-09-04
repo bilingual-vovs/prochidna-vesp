@@ -132,9 +132,9 @@ class MqttManager:
             # await self.client.publish(topic, payload, retain, qos)
             await asyncio.wait_for(
                 self.client.publish(topic, payload, retain, qos),
-                timeout_ms / 1000
+                timeout_ms 
             )
-            # self.log(f"Published to {topic}: {payload}")
+            self.log(f"Published to {topic}: {payload}")
             return True
         except asyncio.TimeoutError:
             self.log(f"Failed to publish to {topic}: Timed out after {timeout_ms}ms")
@@ -152,7 +152,6 @@ class MqttManager:
                 try:
                     # Get the oldest record that is not currently being published
                     record = await self.db.get_record(self.publishing)
-                    self.log(record)
                     if record:
                         dec = record["dec"]
                         self.publishing.add(dec) # Mark as "in-flight"
@@ -187,6 +186,8 @@ class MqttManager:
         try:
             # This is a forever-blocking call that handles connection/reconnection
             await self.client.connect()
+            self.log("Connected")
+            self.is_connected = True
         except OSError as e:
             self.log(f"MQTT connection failed. Will retry in background. Error: {e}")
         
