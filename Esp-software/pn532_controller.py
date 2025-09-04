@@ -123,7 +123,7 @@ class PN532Controller:
                             #     time=timestamp
                             # )
                             
-                            self.led_controller.set_annimation('success', 0.7)
+                            self.led_controller.set_annimation('success', 0.5)
                             asyncio.create_task(self.buzzer_controller.play_approval())
                             # MAYBE ADD IMIDIATE MQTT PROCESSING
                         
