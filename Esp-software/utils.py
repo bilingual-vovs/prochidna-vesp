@@ -50,10 +50,10 @@ DEFAULT_CONFIG = {
   "WHITELIST": ["86-225-141-90"],
 
     "BUZZER_GPIO": 35,
-    "SPI_SCK_GPIO": 16,
-    "SPI_MOSI_GPIO": 14,
-    "SPI_MISO_GPIO": 15,
-    "NFC_CS_GPIO": 13,
+    "SPI_SCK_GPIO": 0,
+    "SPI_MOSI_GPIO": 2,
+    "SPI_MISO_GPIO": 1,
+    "NFC_CS_GPIO": 3,
     "LED_GPIO": 34,
     "MANAGE_WHITELIST_UPDATE": "update",
 
@@ -61,11 +61,13 @@ DEFAULT_CONFIG = {
     "ETH_MDIO": 18,
     "ETH_TYPE": "LAN8720",
     "ETH_CLK_MODE": "GPIO0_IN",
+    
     "ETH_POWER": 12,
     "ETH_PHY_ADDR": 1,
 
     "PREFERED_NETWORK": "wifi"  
 }
+
 
 
 

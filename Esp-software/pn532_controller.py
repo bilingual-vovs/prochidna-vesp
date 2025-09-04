@@ -8,7 +8,7 @@ class PN532Controller:
     Controller class for handling PN532 NFC reader operations.
     Manages NFC reading, status indication, and database interactions.
     """
-    def __init__(self, config, led_controller, db_controller, mqtt_reg):
+    def __init__(self, config, led_controller, db_controller, mqtt_reg, buzzer_controller):
         """
         Initialize the PN532 controller
         :param config: Application configuration dictionary
@@ -20,6 +20,8 @@ class PN532Controller:
         self.led_controller = led_controller
         self.db_controller = db_controller
         self.mqtt_reg = mqtt_reg
+
+        self.buzzer_controller = buzzer_controller
         
         # Initialize hardware
         self.spi_dev = SPI(1, 
@@ -122,11 +124,13 @@ class PN532Controller:
                             # )
                             
                             self.led_controller.set_annimation('success', 0.7)
-        
+                            asyncio.create_task(self.buzzer_controller.play_approval())
                             # MAYBE ADD IMIDIATE MQTT PROCESSING
                         
                 except Exception as e:
                     self.log(f"Error reading card: {e}")
+                    self.led_controller.set_annimation('failure', 0.7)
+                    asyncio.create_task(self.buzzer_controller.play_denial())
                     self.connected = False
                     
             await asyncio.sleep(0.1)  # Small delay to prevent tight loop

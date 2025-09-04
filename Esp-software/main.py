@@ -123,7 +123,7 @@ def initialize_hardware():
         def reg(dec: str, fourth: str, time):
             mqtt_manager.register_read(dec, fourth, time)
         
-        pn532_controller = PN532Controller(config, led_controller, db_controller, reg)
+        pn532_controller = PN532Controller(config, led_controller, db_controller, reg, buzzer)
         
         log("Hardware initialized.")
         return True
