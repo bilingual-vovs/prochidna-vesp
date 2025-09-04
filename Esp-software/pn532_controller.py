@@ -115,17 +115,15 @@ class PN532Controller:
                                 fourth=fourth,  # last 4 bytes
                                 time=timestamp
                             )
-                            self.mqtt_reg(
-                                dec=uid_string,  # decimal representation
-                                fourth=fourth, # last 4 bytes
-                                time=timestamp
-                            )
+                            # self.mqtt_reg(
+                            #     dec=uid_string,  # decimal representation
+                            #     fourth=fourth, # last 4 bytes
+                            #     time=timestamp
+                            # )
                             
                             self.led_controller.set_annimation('success', 0.7)
         
                             # MAYBE ADD IMIDIATE MQTT PROCESSING
-                    else:
-                        self.last_uid = None  # Reset last UID if no card present
                         
                 except Exception as e:
                     self.log(f"Error reading card: {e}")

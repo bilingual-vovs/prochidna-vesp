@@ -11,7 +11,7 @@ from db_conroller import DatabaseController
 import ntptime
 import json
 
-SOFTWARE = 'v3.1.6-refactor'
+SOFTWARE = 'v3.3.6-async-mqtt'
 
 # --- Configuration (Unchanged) ---
 CONFIG_FILE = "config.json"
@@ -76,6 +76,32 @@ def handle_config_update(config_var, msg):
         log(f"Error processing config update for '{config_var}': {e}")
         mqtt_manager.register_error(f"Error processing config update for '{config_var}': {e}") # type: ignore
 
+def handle_whitelist_update(action, data):
+    """Callback for MqttManager to handle whitelist messages."""
+    global whitelist, config
+    log(f"Whitelist action: {action} with UIDs: {data}")
+
+    # Make a mutable copy of the current whitelist
+    current_whitelist = set(whitelist)
+    
+    if action == config["MANAGE_WHITELIST_ADD"]:
+        current_whitelist.update(data)
+    elif action == config["MANAGE_WHITELIST_REMOVE"]:
+        current_whitelist.difference_update(data)
+    elif action == config["MANAGE_WHITELIST_UPDATE"]:
+        current_whitelist = set(data)
+    else:
+        log(f"Unknown whitelist action: {action}")
+        return
+
+    # Update the main whitelist and save to config
+    whitelist = current_whitelist
+    config["WHITELIST"] = list(whitelist)
+    save_config()
+    log(f"Whitelist updated. New size: {len(whitelist)}")
+
+
+
 # --- Hardware Initialization ---
 def initialize_hardware():
     global buzzer, led_controller, db_controller, pn532_controller
@@ -138,15 +164,16 @@ async def main():
         config=config, 
         config_cb=handle_config_update, 
         reset_cb=release,
-        db_controller =db_controller
+        whitelist_cb=handle_whitelist_update,  # <-- ADD THIS WHITELIST CALLBACK
+        db_controller=db_controller
     )
-    await mqtt_manager.run()
-        
+    asyncio.create_task(mqtt_manager.run())
 
     log("All systems running.")
     # The main loop is now only for keeping the script alive
     while True:
-        await asyncio.sleep(60)
+     
+           await asyncio.sleep(60)
 
 # --- Entry Point ---
 if __name__ == "__main__":
