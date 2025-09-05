@@ -1,7 +1,7 @@
 import time
 import uasyncio as asyncio # pyright: ignore[reportMissingImports]
 from machine import reset, RTC, freq # type: ignore
-from utils import connect, load_credentials, DEFAULT_CONFIG
+from utils import connect, load_credentials, DEFAULT_CONFIG, psuedo_connect
 from buzzer import BuzzerController
 import ujson
 from led import LedController
@@ -177,7 +177,9 @@ async def main():
                 log("RTC synchronized with NTP. Current time: " + str(rtc.datetime()))
             except Exception as e:
                 log(f"Error synchronizing with NTP: {e}")
-            await asyncio.sleep(60)
+            log('Keeping alive watchdog..')
+            psuedo_connect(credits, config)
+            await asyncio.sleep(15)
 
 # --- Entry Point ---
 if __name__ == "__main__":

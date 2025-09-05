@@ -180,3 +180,25 @@ def load_config(config, config_file='config.json', log=print):
         log("Config loaded.")
         if config["READER_ID_AFFIX"]=="unidentified_reader":config["READER_ID_AFFIX"]=generate_default_reader_id();save_config();log(f"Generated UID:{config['READER_ID_AFFIX']}")
     except Exception as e:log(f"Config load error:{e}.Using defaults.");config=DEFAULT_CONFIG.copy();save_config()
+
+def log(m):
+    print("Psuedo connect: " + m)
+
+def psuedo_connect(credits, config):
+    try:
+        
+        r = connect_ethernet(
+            mdc = config.get('ETH_MDC', 23),
+            mdio = config.get('ETH_MDIO', 18),
+            phy_type = config.get('ETH_PHY_TYPE', None),
+            phy_addr = config.get('ETH_PHY_ADDR', 0),
+            log=log
+        )   
+        if r:
+            return r
+        else:
+            log("Falling back to WiFi...")
+            return connect_wifi(credits.get('WIFI_SSID', 'prohidna'), credits.get('WIFI_PASSWORD', '12345678'), log=log)
+    except Exception as e:
+        log(f"Connection error: {e}")
+        return None
