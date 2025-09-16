@@ -37,8 +37,9 @@ class MqttManager:
         credentials = load_credentials(log=self.log)
         
         # ---- Populate the CLIENT_CONFIG dictionary ----
-        self.client_config["ssid"] = credentials.get("WIFI_SSID")
-        self.client_config["wifi_pw"] = credentials.get("WIFI_PASSWORD")
+        if (self.app_config.get("PREFERED_NETWORK") == "wifi"):
+            self.client_config["ssid"] = credentials.get("WIFI_SSID")
+            self.client_config["wifi_pw"] = credentials.get("WIFI_PASSWORD")
         self.client_config["server"] = credentials.get("BROKER_ADDR")
         self.client_config["port"] = credentials.get("BROKER_PORT")
         self.client_config["user"] = credentials.get("CLIENT_NAME")
