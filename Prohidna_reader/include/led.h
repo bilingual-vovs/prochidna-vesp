@@ -10,7 +10,7 @@ class Led {
 
         int freq = 60;
         enum State {waiting, loading};
-        enum State animation = waiting;
+        enum State animation = loading;
         int a_delay;
 
         Led(int pin, int num) : led_pin(pin), led_num(num) {
@@ -30,6 +30,9 @@ class Led {
         int approval_timer = 0;
         int denial_timer = 0;
 
+        int approval_color = strip.Color(0, 255, 0);
+        int denial_color = strip.Color(255, 0, 0);
+
         void approval(int time_ms){
             approval_timer = (int)floor(time_ms/a_delay);
             denial_timer = 0;
@@ -45,17 +48,20 @@ class Led {
             strip.clear();
 
             if (approval_timer > 0) {
-                strip.fill(strip.Color(0, 255, 0), 0);
+                strip.fill(approval_color, 0);
                 approval_timer--;
             }
             else if (denial_timer > 0) {
-                strip.fill(strip.Color(255, 0, 0), 0);
+                strip.fill(denial_color, 0);
                 denial_timer--;
             }
             else {
                 switch (animation){
                     case loading:
-                        strip.setPixelColor(d, strip.Color(0, 255, 0));
+                        strip.setPixelColor(d, strip.Color(0, 0, 255));
+                        strip.setPixelColor(d-1, strip.Color(0, 0, 255/2));
+                        strip.setPixelColor(d-2, strip.Color(0, 0, 255/4));
+                        strip.setPixelColor(d-3, strip.Color(0, 0, 255/8));
                         if (i%2==0) d++;
                         if (d>=led_num) d = 0;
                         break;
