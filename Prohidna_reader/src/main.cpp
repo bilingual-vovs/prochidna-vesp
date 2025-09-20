@@ -1,18 +1,18 @@
 #include <Arduino.h>
+#include <led.h>
 
-// put function declarations here:
-int myFunction(int, int);
+#define LED_PIN 4
+#define LED_COUNT 24
+
+Led led(LED_PIN, LED_COUNT);
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+  Serial.begin(115200);
+  Serial.println("NeoPixel Individual LED Control Test");
+  led.setup();
+// Initialize all pixels to 'off'
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-}
-
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+  led.spin();
 }
