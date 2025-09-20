@@ -9,6 +9,9 @@ class Led {
         Adafruit_NeoPixel strip;
 
         int freq = 60;
+        enum State {waiting, loading};
+        enum State animation = loading;
+        int a_delay;
 
         Led(int pin, int num) : led_pin(pin), led_num(num) {
             strip = Adafruit_NeoPixel(num, pin, NEO_GRB + NEO_KHZ800);
@@ -18,15 +21,26 @@ class Led {
             strip.begin();
             strip.clear();
             strip.show();
+            a_delay = 1000/freq;
         }
 
-        void spin() {
-            for (int i = 0; i < led_num; i++) {
-                strip.setPixelColor(i, strip.Color(0, 0, 255));
-                strip.show();
-                delay(50);
-                strip.clear();
-                strip.show(); // Add this to actually turn off the LEDs
+        int i = 0;
+        int d = 0;
+
+        void iteration() {
+
+            strip.clear();
+
+            switch (animation){
+                case loading:
+                    strip.setPixelColor(d, strip.Color(0, 255, 0));
+                    if (i%2==0) d++;
+                    if (d>=led_num) d = 0;
+                    break;
             }
+
+            strip.show();
+            delay(a_delay);
+            i++;
         }
 };

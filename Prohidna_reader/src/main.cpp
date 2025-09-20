@@ -14,5 +14,5 @@ void setup() {
 }
 
 void loop() {
-  led.spin();
+  led.iteration();
 }
