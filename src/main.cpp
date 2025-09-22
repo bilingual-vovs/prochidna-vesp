@@ -1,33 +1,21 @@
 #include <Arduino.h>
-#include "led.h"
-#include "buzzer.h"
+#include "nfc.h"
 
-const int buzzerPin = 4;
+#define PN532_SCK  18
+#define PN532_MISO 19
+#define PN532_MOSI 23
+#define PN532_SS   5 
 
-Melody* approvalMelody = new Melody(
-    new int[4] {NOTE_C4, NOTE_E4, NOTE_G4, NOTE_C5},
-    new int[4] {4, 4, 4, 4},
-    new int[4] {128, 128, 128, 128},
-    500,
-    4
-);
-
-Melody* denialMelody = new Melody(
-  new int[4] {NOTE_C5, NOTE_A4, NOTE_E4, NOTE_C4},
-  new int[4] {4, 4, 4, 4},
-  new int[4] {128, 128, 128, 128},
-  500,
-  4
-);
-
-Buzzer buzzer(buzzerPin, approvalMelody, denialMelody);
+// Create an instance of the PN532 class
+Nfc nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
 
 void setup() {
-  buzzer.playApproval();
-  delay(2000);
-  buzzer.playDenial();
+  Serial.begin(115200);
+  nfc.setup();
 }
 
 void loop() {
-  // no need to repeat the melody.
+  u_int8_t* r = nfc.read();
+  Serial.println("from loop " + String((long)r));
+  delay(1000);
 }
