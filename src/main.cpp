@@ -17,10 +17,30 @@ void setup() {
   led.setup();
   initWiFi();
   nfc.setup();
+
+  xTaskCreate(
+    [](void*){
+      led.ledTask(nullptr);
+    }, 
+    "LED Task", 
+    2048, 
+    nullptr, 
+    1, 
+    nullptr
+  );
+
+  xTaskCreate(
+    [](void*){
+      nfc.readTask(nullptr);
+    }, 
+    "NFC Task", 
+    4096, 
+    nullptr, 
+    1, 
+    nullptr
+  );
 }
 
 void loop() {
-  u_int8_t* r = nfc.read();
-  led.iteration();
-  delay(30);
+
 }

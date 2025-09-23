@@ -69,4 +69,10 @@ class Nfc{
             }
             return nullptr;
         }
+
+        void readTask(void * parameter) {
+            for(;;) {
+                read();
+            }
+        }
 };

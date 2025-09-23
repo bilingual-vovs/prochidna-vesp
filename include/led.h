@@ -72,7 +72,13 @@ class Led {
             }
 
             strip.show();
-            delay(a_delay);
+            vTaskDelay(a_delay);
             i++;
+        }
+
+        void ledTask(void * parameter) {
+            for(;;) {
+                iteration();
+            }
         }
 };
