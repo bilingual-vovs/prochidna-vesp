@@ -46,7 +46,7 @@ class Nfc{
             
             // Attempt to read a Mifare card
             // The timeout of 0 will not block the code, making the loop() run continuously
-            bool success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 0);
+            bool success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 50);
 
             if (success) {
                 Serial.println("\nFound NFC tag!");
