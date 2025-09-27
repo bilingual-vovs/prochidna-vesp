@@ -2,76 +2,128 @@
 #include <SPI.h>
 #include <Adafruit_PN532.h>
 #include "waveshare_pinout.h"
+#include "db.h"
+#include "led.h"
 
-// Chip Select Pin (any GPIO)
+// Define the maximum number of consecutive connection failures before pausing
+#define MAX_CONSECUTIVE_FAILURES 5 
 
-
-
-class Nfc{
-
-    int sck_pin = NFC_SCK;
-    int miso_pin = NFC_MISO;
-    int mosi_pin = NFC_MOSI;
-    int ss_pin = NFC_CS;
+class Nfc {
+private:
+    // PN532 object initialized with SPI pins
+    Adafruit_PN532 nfc; 
     
-    Adafruit_PN532 nfc;
+    String last_uid_str = ""; 
+    DataBase *db_ptr = nullptr; 
 
-    public:
+    Led led = Led(LED, LED_NUM); // Initialize LED object
+    
+    // Status flag to track if the PN532 chip is successfully initialized
+    bool is_connected_ = false;
+    uint8_t failure_count_ = 0;
 
-        void setup() {
-            Serial.println("Initializing PN532...");
-
-            // Begin PN532 communication
-            nfc.begin();
-
-            // Check PN532 firmware version
-            uint32_t versiondata = nfc.getFirmwareVersion();
-            if (!versiondata) {
-                Serial.print("Didn't find PN53x board :(");
-                while (1); // Halt
+    // Helper function to convert UID array to a hexadecimal String
+    String uidArrayToString(uint8_t *uid, uint8_t uidLength) {
+        String result = "";
+        for (uint8_t i = 0; i < uidLength; i++) {
+            if (uid[i] < 0x10) {
+                result += "0"; 
             }
+            result += String(uid[i], HEX); 
+        }
+        return result;
+    }
+    
+    // Private method to handle the actual connection sequence
+    bool reconnect() {
+        Serial.println("Attempting PN532 reconnection...");
+        
+        // 1. Initiate SPI communication
+        nfc.begin();
+        
+        // 2. Check PN532 firmware version
+        uint32_t versiondata = nfc.getFirmwareVersion();
 
-            // Got chip, now configure it to read Mifare cards
+        if (versiondata) {
+            // Success!
             nfc.SAMConfig();
-
-            Serial.println("PN532 initialized!");
-            Serial.println("Waiting for NFC card...");
+            is_connected_ = true;
+            failure_count_ = 0;
+            Serial.println("PN532 Reconnection Successful!");
+            return true;
+        } else {
+            // Failure
+            failure_count_++;
+            is_connected_ = false;
+            Serial.printf("PN532 Reconnection Failed (Attempt %d)...\n", failure_count_);
+            return false;
         }
+    }
 
-        uint8_t* read(){
-                    // Variables to store the card's UID and its length
-            static uint8_t uid[] = {0, 0, 0, 0, 0, 0, 0};
-            uint8_t uidLength;
+
+public:
+    // Initialize the nfc object in the initializer list
+    Nfc() : nfc(NFC_SCK, NFC_MISO, NFC_MOSI, NFC_CS) {} 
+
+    // Public setup only runs once
+    void setup(DataBase& dab) { 
+        Serial.println("Starting NFC setup...");
+        db_ptr = &dab; 
+        led.setup();
+        led.animation = waiting;
+
+        // Attempt initial connection. If it fails, the loop will handle retries.
+        if (!reconnect()) {
+            Serial.println("Initial PN532 connection failed. Retrying in readTask.");
+        }
+    }
+
+    void read() {
+        // FIX: Check connection status before trying to read
+        if (!nfc.getFirmwareVersion()) {
+            // Don't flood the serial/CPU if it's failed too many times
+            if (failure_count_ > MAX_CONSECUTIVE_FAILURES) {
+                 vTaskDelay(pdMS_TO_TICKS(50)); // Pause retries for 500ms
+            }
+            // Try reconnecting
+            reconnect(); 
+            return; // Skip read cycle if connection failed this time
+        }
+        
+        // --- If Connected (Original Read Logic) ---
+        static uint8_t uid[7] = {0};
+        uint8_t uidLength;
+        
+        // Attempt to read a Mifare card (50ms timeout is good)
+        bool success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 50);
+
+        if (success) {
+            String current_uid_str = uidArrayToString(uid, uidLength);
             
-            // Attempt to read a Mifare card
-            // The timeout of 0 will not block the code, making the loop() run continuously
-            bool success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 50);
-
-            if (success) {
-                Serial.println("\nFound NFC tag!");
+            if (current_uid_str != last_uid_str) {
+                // New card found
+                Serial.print("\nFound NEW NFC tag! UID (HEX): ");
+                Serial.println(current_uid_str); 
                 
-                Serial.print("UID Length: ");
-                Serial.print(uidLength, DEC);
-                Serial.println(" bytes");
-
-                Serial.print("UID Value: ");
-                for (uint8_t i = 0; i < uidLength; i++) {
-                    if (uid[i] < 0x10) {
-                        Serial.print("0"); // Add leading zero for single-digit hex values
-                    }
-                    Serial.print(uid[i], DEC);
-                    Serial.print(" ");
+                last_uid_str = current_uid_str;
+                
+                String data_to_log = "UID:" + current_uid_str + ", Time:" + String(millis());
+                
+                if (db_ptr) { 
+                    db_ptr->appendRead(data_to_log);
                 }
-                Serial.println("");
-
-               return uid;
             }
-            return nullptr;
+        } else {
+            // Card removed or read failed (resets the last UID)
+            last_uid_str = "";
         }
+    }
 
-        void readTask(void * parameter) {
-            for(;;) {
-                read();
-            }
+    // Task function
+    void readTask(void * parameter) {
+        for(;;) {
+            read();
+            vTaskDelay(pdMS_TO_TICKS(10)); // Added a slight yield for other tasks
         }
+    }
 };

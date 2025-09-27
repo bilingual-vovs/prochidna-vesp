@@ -1,27 +1,44 @@
 #include <Arduino.h>
-#include <db.h>
+#include <db.h> // Include DataBase
+#include <nfc.h> // Include Nfc
 
-//  You only need to format LittleFS the first time you run a
-//  test or else use the LITTLEFS plugin to create a partition 
-//  https://github.com/lorol/arduino-esp32littlefs-plugin
-DataBase db = DataBase();
+DataBase db;
+Nfc nfc;
 
 void setup(){
     Serial.begin(115200);
+    delay(1000);
+    Serial.println("--- Starting Setup ---"); // Added print
 
-    delay(2000);
-    for (int i = 0; i < 20; i++) {
-        int r = db.removeRead(db.getRead());
-        Serial.printf("Remove read result: %d\r\n", r);
-
-    }
-
-    Serial.println("Done");
-    Serial.println(db.readFile(PATH));
-    // Use the official core's LittleFS object, which should be globally available.
+    // 1. Initialize the File System
+    Serial.println("Initializing DB..."); // Added print
+    db.setup(); 
+    Serial.println("DB Setup Complete (or failed and returned)."); // Added print
     
+    // 2. Initialize the NFC Reader
+    Serial.println("Initializing NFC..."); // Added print
+    nfc.setup(db); 
+    Serial.println("NFC Setup Complete (or halted).");
+    // 3. Create the NFC reading task
+   xTaskCreate(
+       [](void*){
+           // Create a local Nfc object if it's not a static object
+           // However, since nfc is a global object, we reference it directly
+           for(;;) {
+               nfc.read();
+               vTaskDelay(10 / portTICK_PERIOD_MS); // Small delay to yield to other tasks
+           }
+       },
+       "NFC Reader Task",
+       4096, // Stack size
+       NULL,
+       1, // Priority
+       NULL
+   );
 }
 
 void loop(){
-
+    // You can add your MQTT Uploader Task here or in loop()
+    // For now, loop() is empty.
+    vTaskDelay(pdMS_TO_TICKS(1000));
 }

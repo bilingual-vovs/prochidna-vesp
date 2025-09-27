@@ -4,3 +4,4 @@
 #define NFC_CS 0
 
 #define LED 21
+#define LED_NUM 24
