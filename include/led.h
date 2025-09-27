@@ -2,6 +2,8 @@
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>
 
+enum State {waiting, loading};
+
 class Led {
     public:
         int led_pin;
@@ -9,7 +11,6 @@ class Led {
         Adafruit_NeoPixel strip;
 
         int freq = 60;
-        enum State {waiting, loading};
         enum State animation = loading;
         int a_delay;
 

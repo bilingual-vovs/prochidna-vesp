@@ -1,9 +1,11 @@
 #include <Arduino.h>
 #include <db.h> // Include DataBase
 #include <nfc.h> // Include Nfc
+#include <led.h> // Include Led
 
 DataBase db;
 Nfc nfc;
+Led led = Led(LED, LED_NUM); // Initialize LED object
 
 void setup(){
     Serial.begin(115200);
@@ -15,9 +17,10 @@ void setup(){
     db.setup(); 
     Serial.println("DB Setup Complete (or failed and returned)."); // Added print
     
+    led.setup();
     // 2. Initialize the NFC Reader
     Serial.println("Initializing NFC..."); // Added print
-    nfc.setup(db); 
+    nfc.setup(db, led); 
     Serial.println("NFC Setup Complete (or halted).");
     // 3. Create the NFC reading task
    xTaskCreate(
@@ -35,10 +38,23 @@ void setup(){
        1, // Priority
        NULL
    );
+
+   xTaskCreate(
+       [](void*){
+           // Create a local Led object if it's not a static object
+           // However, since led is a member of nfc, we reference it directly
+           for(;;) {
+               led.iteration();
+               vTaskDelay(10 / portTICK_PERIOD_MS); // Small delay to yield to other tasks
+           }
+       },
+       "LED Animation Task",
+       2048, // Stack size
+       NULL,
+       1, // Priority
+       NULL
+   );
 }
 
 void loop(){
-    // You can add your MQTT Uploader Task here or in loop()
-    // For now, loop() is empty.
-    vTaskDelay(pdMS_TO_TICKS(1000));
 }

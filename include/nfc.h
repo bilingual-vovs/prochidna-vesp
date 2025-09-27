@@ -16,7 +16,7 @@ private:
     String last_uid_str = ""; 
     DataBase *db_ptr = nullptr; 
 
-    Led led = Led(LED, LED_NUM); // Initialize LED object
+    Led *led = nullptr; // Initialize LED object
     
     // Status flag to track if the PN532 chip is successfully initialized
     bool is_connected_ = false;
@@ -50,6 +50,7 @@ private:
             is_connected_ = true;
             failure_count_ = 0;
             Serial.println("PN532 Reconnection Successful!");
+            led->animation = waiting;
             return true;
         } else {
             // Failure
@@ -66,11 +67,11 @@ public:
     Nfc() : nfc(NFC_SCK, NFC_MISO, NFC_MOSI, NFC_CS) {} 
 
     // Public setup only runs once
-    void setup(DataBase& dab) { 
+    void setup(DataBase& dab, Led& led_instance) { 
         Serial.println("Starting NFC setup...");
         db_ptr = &dab; 
-        led.setup();
-        led.animation = waiting;
+        led = &led_instance;
+        led->animation = waiting;
 
         // Attempt initial connection. If it fails, the loop will handle retries.
         if (!reconnect()) {
@@ -85,6 +86,7 @@ public:
             if (failure_count_ > MAX_CONSECUTIVE_FAILURES) {
                  vTaskDelay(pdMS_TO_TICKS(50)); // Pause retries for 500ms
             }
+            led->animation = loading;
             // Try reconnecting
             reconnect(); 
             return; // Skip read cycle if connection failed this time
@@ -98,6 +100,7 @@ public:
         bool success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 50);
 
         if (success) {
+            led->approval(200);
             String current_uid_str = uidArrayToString(uid, uidLength);
             
             if (current_uid_str != last_uid_str) {
