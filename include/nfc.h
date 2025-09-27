@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Adafruit_PN532.h>
+#include "waveshare_pinout.h"
 
 // Chip Select Pin (any GPIO)
 
@@ -8,16 +9,14 @@
 
 class Nfc{
 
-    int sck_pin;
-    int miso_pin;
-    int mosi_pin;
-    int ss_pin;
+    int sck_pin = NFC_SCK;
+    int miso_pin = NFC_MISO;
+    int mosi_pin = NFC_MOSI;
+    int ss_pin = NFC_CS;
     
     Adafruit_PN532 nfc;
 
     public:
-        Nfc(int sck, int miso, int mosi, int ss): sck_pin(sck), miso_pin(miso), mosi_pin(mosi), ss_pin(ss), nfc(sck, miso, mosi, ss) {
-        }
 
         void setup() {
             Serial.println("Initializing PN532...");
